@@ -410,7 +410,7 @@ async def run_checker(req: CheckerRequest, user: dict = Depends(get_current_user
             return data
             
         elif req.gateway == "shopify_v2":
-            url = f"https://gates.valyrian.cc/autoshopify/tsl/check?card={req.card}&proxy={proxy_url}"
+            url = f"https://gates.valyrian.cc/autoshopify/curl/check?card={req.card}&proxy={proxy_url}"
             res = requests.get(url, timeout=30.0, verify=False)
             data = res.json()
             

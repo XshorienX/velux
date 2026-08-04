@@ -519,20 +519,30 @@ const CheckerTab = () => {
         let isApproved = false;
         let messageStr = "";
         
-        if (data.status === true && data.result) {
-          isApproved = data.result.status?.toLowerCase() === "charged" || data.result.status?.toLowerCase() === "live";
-          messageStr = data.result.message || JSON.stringify(data.result);
-        } else if (data.Status) {
-          isApproved = data.Status.toUpperCase() === "CHARGED" || data.Status.toUpperCase() === "LIVE";
-          messageStr = data.Response || JSON.stringify(data);
-        } else if (data.status === "CHARGED" || data.charged === true || data.status === "LIVE") {
-          isApproved = true;
-          messageStr = data.message || "Charged / Approved";
-        } else if (data.status === "DECLINED") {
-          isApproved = false;
-          messageStr = data.message || "Declined";
+        if (activeGateway === 'stripe') {
+          if (data.status === true && data.result) {
+            isApproved = data.result.status?.toLowerCase() === "charged" || data.result.status?.toLowerCase() === "live";
+          } else if (data.Status) {
+            isApproved = data.Status.toUpperCase() === "CHARGED" || data.Status.toUpperCase() === "LIVE";
+          }
+          // Raw format for Stripe as requested
+          messageStr = JSON.stringify(data);
         } else {
-          messageStr = data.message || JSON.stringify(data);
+          if (data.status === true && data.result) {
+            isApproved = data.result.status?.toLowerCase() === "charged" || data.result.status?.toLowerCase() === "live";
+            messageStr = data.result.message || JSON.stringify(data.result);
+          } else if (data.Status) {
+            isApproved = data.Status.toUpperCase() === "CHARGED" || data.Status.toUpperCase() === "LIVE";
+            messageStr = data.Response || JSON.stringify(data);
+          } else if (data.status === "CHARGED" || data.charged === true || data.status === "LIVE" || data.status === "APPROVED") {
+            isApproved = true;
+            messageStr = data.message || "Charged / Approved";
+          } else if (data.status === "DECLINED") {
+            isApproved = false;
+            messageStr = data.message || "Declined";
+          } else {
+            messageStr = data.message || JSON.stringify(data);
+          }
         }
         
         setResults(prev => [{ card, response: messageStr, isApproved, time: new Date().toLocaleTimeString(), original: data }, ...prev]);
@@ -699,11 +709,11 @@ const CheckerTab = () => {
               <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 font-mono text-[11px] sm:text-xs">
                 {results.map((r, i) => (
                   <div key={i} className={`p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${r.isApproved ? 'bg-green-500/10 border-green-500/20 text-green-400' : r.error ? 'bg-neutral-800/50 border-neutral-700/50 text-neutral-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-shrink-0">
                       <span className="opacity-50">[{r.time}]</span>
                       <span className="font-semibold">{r.card}</span>
                     </div>
-                    <div className="truncate max-w-[200px] sm:max-w-md opacity-80">
+                    <div className="text-[10px] sm:text-xs opacity-80 break-all sm:max-w-2xl text-right">
                       {r.response}
                     </div>
                   </div>
