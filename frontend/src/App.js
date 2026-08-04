@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-route
 import { Toaster, toast } from "sonner";
 import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
-import { Lock, User, Terminal, ChevronRight, LogOut, Search, Activity, ShieldAlert, Cpu } from "lucide-react";
+import { Lock, User, Terminal, ChevronRight, LogOut, Search, Activity, ShieldAlert, Cpu, Plus, MoreHorizontal } from "lucide-react";
 
 axios.defaults.baseURL = process.env.REACT_APP_BACKEND_URL;
 axios.defaults.withCredentials = true;
@@ -57,26 +57,26 @@ function formatApiError(detail) {
   return String(detail);
 }
 
-// Components
+// Modern Reusable Components
 const Input = React.forwardRef(({ className, ...props }, ref) => (
   <input
     ref={ref}
-    className={`flex h-10 w-full rounded-none border border-zinc-800/80 bg-gradient-to-b from-[#0a0a0a] to-[#000000] px-3 py-2 text-sm text-white focus-visible:outline-none focus-visible:border-zinc-500 focus-visible:ring-1 focus-visible:ring-zinc-500 disabled:cursor-not-allowed disabled:opacity-50 transition-colors shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)] ${className || ""}`}
+    className={`flex h-11 w-full rounded-xl border border-white/10 bg-white/[0.02] px-4 py-2 text-sm text-white placeholder:text-zinc-600 focus-visible:outline-none focus-visible:border-white/20 focus-visible:ring-1 focus-visible:ring-white/20 transition-all ${className || ""}`}
     {...props}
   />
 ));
 
 const Button = React.forwardRef(({ className, variant = "default", size = "default", ...props }, ref) => {
-  const base = "inline-flex items-center justify-center whitespace-nowrap rounded-none text-sm font-bold transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-500 disabled:pointer-events-none disabled:opacity-50 uppercase tracking-widest active:scale-95";
+  const base = "inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98]";
   const variants = {
-    default: "bg-gradient-to-b from-zinc-200 to-zinc-400 text-black hover:from-white hover:to-zinc-300 border-transparent shadow-[0_0_15px_rgba(255,255,255,0.1)]",
-    outline: "border border-zinc-700 bg-gradient-to-b from-[#111] to-black text-zinc-300 hover:text-white hover:border-zinc-500 shadow-lg",
-    ghost: "hover:bg-white/5 text-zinc-400 hover:text-white",
+    default: "bg-white text-black hover:bg-zinc-200 shadow-sm",
+    outline: "border border-white/10 bg-transparent text-white hover:bg-white/5",
+    ghost: "hover:bg-white/10 text-zinc-400 hover:text-white",
+    danger: "bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20",
   };
   const sizes = {
-    default: "h-10 px-4 py-2",
-    sm: "h-9 rounded-md px-3",
-    lg: "h-11 rounded-md px-8",
+    default: "h-11 px-4 py-2",
+    sm: "h-9 rounded-lg px-3",
     icon: "h-10 w-10",
   };
   return (
@@ -117,41 +117,41 @@ const Login = () => {
     <motion.div 
       initial={{ opacity: 0 }} 
       animate={{ opacity: 1 }} 
-      exit={{ opacity: 0, scale: 0.95 }}
-      transition={{ duration: 0.5 }}
+      exit={{ opacity: 0, scale: 0.98 }}
+      transition={{ duration: 0.4 }}
       className="min-h-screen flex items-center justify-center p-4 relative z-10"
     >
-      <div className="w-full max-w-md glass-panel p-8 md:p-12 relative overflow-hidden">
-        {/* Decorative corner accents */}
-        <div className="absolute top-0 left-0 w-4 h-4 border-t border-l border-zinc-600"></div>
-        <div className="absolute top-0 right-0 w-4 h-4 border-t border-r border-zinc-600"></div>
-        <div className="absolute bottom-0 left-0 w-4 h-4 border-b border-l border-zinc-600"></div>
-        <div className="absolute bottom-0 right-0 w-4 h-4 border-b border-r border-zinc-600"></div>
-        
-        <div className="mb-10 text-left space-y-2">
-          <h1 className="text-4xl md:text-5xl tracking-tighter font-black uppercase font-mono bg-gradient-to-b from-white via-zinc-400 to-zinc-700 bg-clip-text text-transparent pb-1">VeLuX</h1>
-          <p className="text-xs tracking-[0.2em] uppercase font-bold text-zinc-600">Ultimate Checker Protocol</p>
+      {/* Soft ambient glow behind the login box */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-white/[0.02] rounded-full blur-[100px] pointer-events-none"></div>
+
+      <div className="w-full max-w-[420px] bg-[#09090b] border border-white/5 rounded-2xl p-8 shadow-2xl relative z-10">
+        <div className="flex flex-col items-center text-center mb-8">
+          <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-zinc-800 to-zinc-950 border border-white/10 flex items-center justify-center mb-5 shadow-lg">
+            <Terminal className="h-6 w-6 text-white" />
+          </div>
+          <h1 className="text-2xl font-semibold text-white tracking-tight">VeLuX System</h1>
+          <p className="text-sm text-zinc-500 mt-2">Enter your credentials to access the checker.</p>
         </div>
         
-        <form onSubmit={handleLogin} className="space-y-6">
+        <form onSubmit={handleLogin} className="space-y-5">
           <div className="space-y-2">
-            <label className="text-xs tracking-[0.2em] uppercase font-bold text-zinc-500">Username</label>
+            <label className="text-xs font-medium text-zinc-400 ml-1">Username</label>
             <div className="relative">
-              <User className="absolute left-3 top-3 h-4 w-4 text-zinc-600" />
+              <User className="absolute left-3.5 top-3.5 h-4 w-4 text-zinc-500" />
               <Input 
                 value={username} 
                 onChange={(e) => setUsername(e.target.value)} 
                 className="pl-10" 
-                placeholder="Enter identifier..." 
+                placeholder="admin" 
                 data-testid="login-username"
                 required
               />
             </div>
           </div>
           <div className="space-y-2">
-            <label className="text-xs tracking-[0.2em] uppercase font-bold text-zinc-500">Password</label>
+            <label className="text-xs font-medium text-zinc-400 ml-1">Password</label>
             <div className="relative">
-              <Lock className="absolute left-3 top-3 h-4 w-4 text-zinc-600" />
+              <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-zinc-500" />
               <Input 
                 type="password" 
                 value={password} 
@@ -166,12 +166,12 @@ const Login = () => {
           
           <Button 
             type="submit" 
-            className="w-full mt-4 group" 
+            className="w-full mt-2 group" 
             disabled={loading}
             data-testid="login-submit"
           >
-            {loading ? "Authenticating..." : "Initialize Sequence"}
-            <ChevronRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+            {loading ? "Authenticating..." : "Sign In"}
+            {!loading && <ChevronRight className="ml-1.5 h-4 w-4 opacity-50 group-hover:translate-x-0.5 transition-transform" />}
           </Button>
         </form>
       </div>
@@ -183,30 +183,24 @@ const VoidTransition = ({ onComplete }) => {
   useEffect(() => {
     const timer = setTimeout(() => {
       onComplete();
-    }, 4500);
+    }, 3000); // Shortened transition for a snappier experience
     return () => clearTimeout(timer);
   }, [onComplete]);
 
   return (
     <motion.div 
-      className="fixed inset-0 bg-black z-50 flex items-center justify-center overflow-hidden"
+      className="fixed inset-0 bg-black z-50 flex items-center justify-center"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
-      <motion.div 
-        className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_#0a0a0a_0%,_#000000_100%)] bg-cover bg-center"
-        initial={{ scale: 1, opacity: 0 }}
-        animate={{ scale: 1.2, opacity: [0, 1, 0] }}
-        transition={{ duration: 4.5, ease: "easeInOut" }}
-      />
       <motion.h2 
-        className="font-mono uppercase tracking-[0.5em] text-sm md:text-xl relative z-10 bg-gradient-to-b from-white via-zinc-400 to-zinc-700 bg-clip-text text-transparent"
-        initial={{ opacity: 0, letterSpacing: "0.2em", filter: "blur(10px)" }}
-        animate={{ opacity: [0, 1, 1, 0], letterSpacing: "1em", filter: ["blur(10px)", "blur(0px)", "blur(0px)", "blur(10px)"] }}
-        transition={{ duration: 4, times: [0, 0.4, 0.8, 1], ease: "easeInOut" }}
+        className="font-mono text-zinc-400 text-sm md:text-base tracking-[0.2em]"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: [0, 1, 1, 0], y: [10, 0, 0, -10] }}
+        transition={{ duration: 3, times: [0, 0.3, 0.7, 1], ease: "easeInOut" }}
       >
-        Welcome to NetherWorld......
+        Welcome to NetherWorld.
       </motion.h2>
     </motion.div>
   );
@@ -217,29 +211,38 @@ const DashboardLayout = ({ children, title }) => {
   
   return (
     <div className="min-h-screen flex flex-col z-10 relative">
-      <header className="h-16 border-b border-zinc-800/80 bg-gradient-to-b from-[#0a0a0a]/90 to-[#000000]/80 backdrop-blur-xl flex items-center justify-between px-6 sticky top-0 z-40 shadow-[0_10px_30px_rgba(0,0,0,0.8)]">
-        <div className="flex items-center gap-4">
-          <Terminal className="h-5 w-5 text-zinc-300" />
-          <h1 className="font-mono text-xl font-bold uppercase tracking-widest bg-gradient-to-r from-white to-zinc-500 bg-clip-text text-transparent">
-            VeLuX<span className="text-zinc-600 text-sm ml-2">[{user.role}]</span>
-          </h1>
+      <header className="h-16 border-b border-white/5 bg-[#000000]/80 backdrop-blur-xl flex items-center justify-between px-6 sticky top-0 z-40">
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+            <Terminal className="h-4 w-4 text-white" />
+          </div>
+          <span className="font-semibold text-white tracking-tight text-sm">VeLuX</span>
+          <span className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[10px] uppercase font-mono text-zinc-400 ml-2">
+            {user.role}
+          </span>
         </div>
-        <div className="flex items-center gap-6">
-          <div className="text-xs font-mono text-zinc-400 hidden md:block">
-            <span className="text-zinc-600 mr-2">ID:</span>{user.username}
+        <div className="flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-4 mr-4">
+            <div className="flex flex-col items-end">
+              <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider">User</span>
+              <span className="text-xs text-zinc-300 font-medium">{user.username}</span>
+            </div>
+            <div className="h-8 w-px bg-white/10"></div>
+            <div className="flex flex-col items-start">
+              <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider">Credits</span>
+              <span className="text-xs text-white font-mono">{user.credits?.toLocaleString()}</span>
+            </div>
           </div>
-          <div className="text-xs font-mono text-zinc-400 hidden md:block">
-            <span className="text-zinc-600 mr-2">CREDITS:</span>{user.credits?.toLocaleString()}
-          </div>
-          <Button variant="ghost" size="icon" onClick={logout} data-testid="logout-btn">
+          <Button variant="outline" size="sm" onClick={logout} data-testid="logout-btn" className="h-9 px-3 gap-2">
             <LogOut className="h-4 w-4" />
+            <span className="hidden sm:inline">Sign Out</span>
           </Button>
         </div>
       </header>
-      <main className="flex-1 p-6 md:p-12 relative z-10">
-        <div className="max-w-7xl mx-auto space-y-8">
-          <div className="flex items-center gap-4 pb-4 border-b border-zinc-800/60">
-            <h2 className="text-2xl font-mono uppercase tracking-widest bg-gradient-to-r from-white to-zinc-500 bg-clip-text text-transparent">{title}</h2>
+      <main className="flex-1 p-6 md:p-8 lg:p-12 relative z-10">
+        <div className="max-w-[1200px] mx-auto space-y-8">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl md:text-3xl font-semibold text-white tracking-tight">{title}</h1>
           </div>
           {children}
         </div>
@@ -282,7 +285,7 @@ const AdminDashboard = () => {
         credits: parseInt(newCredits, 10),
         limits: "standard"
       });
-      toast.success("User initialized");
+      toast.success("User successfully created.");
       setNewUsername("");
       setNewPassword("");
       fetchUsers();
@@ -295,7 +298,7 @@ const AdminDashboard = () => {
     try {
       const newStatus = user.status === "active" ? "banned" : "active";
       await axios.patch(`/api/admin/users/${user._id}`, { status: newStatus });
-      toast.success(`User status updated to ${newStatus}`);
+      toast.success(`User status changed to ${newStatus}`);
       fetchUsers();
     } catch (e) {
       toast.error("Failed to update status");
@@ -303,10 +306,10 @@ const AdminDashboard = () => {
   };
   
   const deleteUser = async (userId) => {
-    if (!window.confirm("Confirm deletion of entity?")) return;
+    if (!window.confirm("Are you sure you want to delete this user? This cannot be undone.")) return;
     try {
       await axios.delete(`/api/admin/users/${userId}`);
-      toast.success("User erased");
+      toast.success("User deleted.");
       fetchUsers();
     } catch (e) {
       toast.error("Failed to delete user");
@@ -314,91 +317,101 @@ const AdminDashboard = () => {
   };
 
   return (
-    <DashboardLayout title="System Administration">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <DashboardLayout title="Users & Access">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         
         {/* Create User Panel */}
-        <div className="lg:col-span-1">
-          <div className="glass-panel p-6">
-            <h3 className="text-sm tracking-[0.2em] uppercase font-bold text-zinc-400 mb-6 flex items-center">
-              <User className="mr-2 h-4 w-4" /> Initialize Entity
-            </h3>
+        <div className="xl:col-span-1">
+          <div className="bg-[#09090b] border border-white/5 rounded-2xl p-6 shadow-xl">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="h-8 w-8 rounded-lg bg-white/5 flex items-center justify-center">
+                <Plus className="h-4 w-4 text-white" />
+              </div>
+              <h3 className="font-medium text-white">Create User</h3>
+            </div>
             <form onSubmit={handleCreateUser} className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-xs text-zinc-500 uppercase font-bold tracking-widest">Identifier</label>
-                <Input value={newUsername} onChange={(e) => setNewUsername(e.target.value)} required data-testid="create-user-username" />
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-zinc-400 ml-1">Username</label>
+                <Input value={newUsername} onChange={(e) => setNewUsername(e.target.value)} required placeholder="johndoe" data-testid="create-user-username" />
               </div>
-              <div className="space-y-2">
-                <label className="text-xs text-zinc-500 uppercase font-bold tracking-widest">Keyphrase</label>
-                <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required data-testid="create-user-password" />
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-zinc-400 ml-1">Password</label>
+                <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required placeholder="••••••••" data-testid="create-user-password" />
               </div>
-              <div className="space-y-2">
-                <label className="text-xs text-zinc-500 uppercase font-bold tracking-widest">Initial Credits</label>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-zinc-400 ml-1">Initial Credits</label>
                 <Input type="number" value={newCredits} onChange={(e) => setNewCredits(e.target.value)} min="0" required />
               </div>
-              <Button type="submit" className="w-full mt-2" data-testid="create-user-submit">Deploy</Button>
+              <Button type="submit" className="w-full mt-4" data-testid="create-user-submit">Create Account</Button>
             </form>
           </div>
         </div>
 
         {/* Users List */}
-        <div className="lg:col-span-2">
-          <div className="glass-panel overflow-hidden">
-            <div className="p-4 border-b border-zinc-800/80 bg-gradient-to-b from-[#111111] to-transparent">
-              <h3 className="text-sm tracking-[0.2em] uppercase font-bold text-zinc-400">Entity Matrix</h3>
+        <div className="xl:col-span-2">
+          <div className="bg-[#09090b] border border-white/5 rounded-2xl shadow-xl overflow-hidden flex flex-col h-full">
+            <div className="px-6 py-5 border-b border-white/5 flex items-center justify-between">
+              <h3 className="font-medium text-white">Directory</h3>
+              <span className="text-xs text-zinc-500 font-mono">{users.length} Total</span>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full text-left">
                 <thead>
-                  <tr className="border-b border-zinc-800/50">
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-zinc-500">Identifier</th>
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-zinc-500">Role</th>
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-zinc-500">Status</th>
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-zinc-500 text-right">Credits</th>
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-zinc-500 text-right">Actions</th>
+                  <tr className="border-b border-white/5 bg-white/[0.02]">
+                    <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">User</th>
+                    <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Status</th>
+                    <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 text-right">Credits</th>
+                    <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="font-mono text-sm">
+                <tbody className="text-sm">
                   {users.map(u => (
-                    <tr key={u._id} className="border-b border-zinc-800/30 hover:bg-white/[0.02] transition-colors">
-                      <td className="px-6 py-4 text-zinc-300">{u.username}</td>
+                    <tr key={u._id} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
                       <td className="px-6 py-4">
-                        <span className={`px-2 py-1 text-[10px] uppercase tracking-widest border bg-black/40 ${u.role === 'admin' ? 'border-zinc-500 text-zinc-300' : 'border-zinc-800 text-zinc-500'}`}>
-                          {u.role}
-                        </span>
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-zinc-800 to-zinc-900 border border-white/5 flex items-center justify-center shrink-0">
+                            <span className="text-xs font-medium text-zinc-300">{u.username.substring(0,2).toUpperCase()}</span>
+                          </div>
+                          <div>
+                            <div className="font-medium text-zinc-200">{u.username}</div>
+                            <div className="text-[10px] text-zinc-500 uppercase tracking-wider mt-0.5">{u.role}</div>
+                          </div>
+                        </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`flex items-center gap-2 ${u.status === 'active' ? 'text-zinc-400' : 'text-red-500'}`}>
-                          <div className={`w-2 h-2 rounded-none ${u.status === 'active' ? 'bg-zinc-400 shadow-[0_0_5px_rgba(255,255,255,0.5)]' : 'bg-red-500 shadow-[0_0_5px_rgba(255,0,0,0.5)]'}`}></div>
-                          {u.status.toUpperCase()}
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${u.status === 'active' ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20'}`}>
+                          <div className={`w-1.5 h-1.5 rounded-full ${u.status === 'active' ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                          {u.status === 'active' ? 'Active' : 'Banned'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right text-zinc-400">{u.credits?.toLocaleString()}</td>
-                      <td className="px-6 py-4 text-right space-x-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className={`text-xs h-7 px-2 ${u.status === 'banned' ? 'border-zinc-600 text-zinc-300' : 'border-red-900/50 text-red-500/80 hover:text-red-400'}`}
-                          onClick={() => toggleStatus(u)}
-                          data-testid={`toggle-status-${u._id}`}
-                        >
-                          {u.status === 'active' ? 'BAN' : 'UNBAN'}
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="text-xs h-7 px-2 border-red-900/30 text-red-800 hover:border-red-900 hover:text-red-600"
-                          onClick={() => deleteUser(u._id)}
-                          data-testid={`delete-user-${u._id}`}
-                        >
-                          ERASE
-                        </Button>
+                      <td className="px-6 py-4 text-right">
+                        <span className="font-mono text-zinc-300">{u.credits?.toLocaleString()}</span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => toggleStatus(u)}
+                            data-testid={`toggle-status-${u._id}`}
+                          >
+                            {u.status === 'active' ? 'Ban' : 'Unban'}
+                          </Button>
+                          <Button 
+                            variant="danger" 
+                            size="sm" 
+                            onClick={() => deleteUser(u._id)}
+                            data-testid={`delete-user-${u._id}`}
+                          >
+                            Delete
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
                   {users.length === 0 && !loading && (
                     <tr>
-                      <td colSpan="5" className="px-6 py-8 text-center text-zinc-600 italic">No entities found in matrix.</td>
+                      <td colSpan="4" className="px-6 py-12 text-center text-zinc-500">No users found.</td>
                     </tr>
                   )}
                 </tbody>
@@ -414,29 +427,48 @@ const AdminDashboard = () => {
 
 const UserDashboard = () => {
   return (
-    <DashboardLayout title="Checker Protocol">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="glass-panel p-6 border-l-2 border-l-zinc-500">
-          <Activity className="h-6 w-6 text-zinc-400 mb-4" />
-          <h3 className="font-mono text-xl text-zinc-200 mb-2">Protocol Status</h3>
-          <p className="text-zinc-500 text-sm">Main AI key checker module is currently offline. Awaiting sequence initialization from the administrator.</p>
+    <DashboardLayout title="Overview">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-[#09090b] border border-white/5 p-6 rounded-2xl shadow-xl relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
+            <Activity className="w-24 h-24" />
+          </div>
+          <div className="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 relative z-10">
+            <Activity className="h-5 w-5 text-white" />
+          </div>
+          <h3 className="font-medium text-white mb-2 relative z-10">Protocol Status</h3>
+          <p className="text-zinc-500 text-sm leading-relaxed relative z-10">Main AI key checker module is currently offline. Awaiting sequence initialization.</p>
         </div>
-        <div className="glass-panel p-6 border-l-2 border-l-zinc-800 opacity-60">
-          <Cpu className="h-6 w-6 text-zinc-600 mb-4" />
-          <h3 className="font-mono text-xl text-zinc-500 mb-2">Proxy Node</h3>
-          <p className="text-zinc-600 text-sm">COMING SOON. High-speed HTTP/SOCKS5 validation engine.</p>
+        
+        <div className="bg-[#09090b] border border-white/5 p-6 rounded-2xl shadow-xl relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
+            <Cpu className="w-24 h-24" />
+          </div>
+          <div className="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 relative z-10">
+            <Cpu className="h-5 w-5 text-zinc-400" />
+          </div>
+          <h3 className="font-medium text-zinc-300 mb-2 relative z-10">Proxy Node</h3>
+          <p className="text-zinc-600 text-sm leading-relaxed relative z-10"><span className="text-xs font-semibold uppercase text-zinc-400 mr-2">Coming Soon</span> High-speed HTTP/SOCKS5 validation engine.</p>
         </div>
-        <div className="glass-panel p-6 border-l-2 border-l-zinc-800 opacity-60">
-          <ShieldAlert className="h-6 w-6 text-zinc-600 mb-4" />
-          <h3 className="font-mono text-xl text-zinc-500 mb-2">AI API Vault</h3>
-          <p className="text-zinc-600 text-sm">COMING SOON. Multi-provider key validation and quota checking.</p>
+
+        <div className="bg-[#09090b] border border-white/5 p-6 rounded-2xl shadow-xl relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
+            <ShieldAlert className="w-24 h-24" />
+          </div>
+          <div className="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 relative z-10">
+            <ShieldAlert className="h-5 w-5 text-zinc-400" />
+          </div>
+          <h3 className="font-medium text-zinc-300 mb-2 relative z-10">AI API Vault</h3>
+          <p className="text-zinc-600 text-sm leading-relaxed relative z-10"><span className="text-xs font-semibold uppercase text-zinc-400 mr-2">Coming Soon</span> Multi-provider key validation and quota checking.</p>
         </div>
       </div>
       
-      <div className="mt-8 glass-panel p-8 border border-zinc-800 flex flex-col items-center justify-center text-center py-24 bg-gradient-to-t from-[#0a0a0a] to-[#000000]">
-        <Search className="h-12 w-12 text-zinc-700 mb-6 drop-shadow-[0_0_15px_rgba(255,255,255,0.05)]" />
-        <h2 className="text-2xl font-mono bg-gradient-to-b from-zinc-300 to-zinc-600 bg-clip-text text-transparent uppercase tracking-widest mb-2">Awaiting Deployment</h2>
-        <p className="text-zinc-600 max-w-md">The Ultimate Checker UI is currently being forged in the NetherWorld. Check back later for the next update.</p>
+      <div className="mt-8 bg-[#09090b] border border-white/5 rounded-2xl shadow-xl p-12 flex flex-col items-center justify-center text-center">
+        <div className="h-16 w-16 rounded-full bg-white/[0.02] border border-white/5 flex items-center justify-center mb-6">
+          <Search className="h-6 w-6 text-zinc-500" />
+        </div>
+        <h2 className="text-xl font-medium text-white mb-3">Awaiting Deployment</h2>
+        <p className="text-zinc-500 max-w-md mx-auto leading-relaxed">The primary checker interface is currently being deployed. Please check back later for the next system update.</p>
       </div>
     </DashboardLayout>
   );
@@ -452,7 +484,7 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
     }
   }, [justLoggedIn]);
 
-  if (loading) return <div className="min-h-screen bg-[#050505] flex items-center justify-center"><div className="w-8 h-8 border-2 border-zinc-600 border-t-zinc-200 animate-spin"></div></div>;
+  if (loading) return <div className="min-h-screen bg-[#000] flex items-center justify-center"><div className="w-6 h-6 border-2 border-zinc-800 border-t-white rounded-full animate-spin"></div></div>;
   
   if (!user) return <Navigate to="/login" replace />;
   
@@ -471,9 +503,9 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.98 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.5, ease: "easeOut" }}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: [0.32, 0.72, 0, 1] }}
       className="w-full h-full"
     >
       {children}
@@ -484,9 +516,9 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
 export default function App() {
   return (
     <AuthProvider>
-      <div className="min-h-screen text-white selection:bg-zinc-800 selection:text-white font-sans relative bg-gradient-to-br from-[#121212] via-[#050505] to-[#000000]">
+      <div className="min-h-screen text-white font-sans relative bg-[#000]">
         <div className="bg-noise" />
-        <Toaster theme="dark" toastOptions={{ className: 'rounded-none border-zinc-800/80 bg-gradient-to-b from-[#111111] to-black text-zinc-300 font-mono uppercase tracking-wider text-xs shadow-2xl' }} />
+        <Toaster theme="dark" toastOptions={{ className: 'rounded-xl border border-white/10 bg-[#0a0a0a] text-zinc-200 font-sans shadow-2xl' }} />
         
         <BrowserRouter>
           <AnimatePresence mode="wait">

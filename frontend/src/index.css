@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -6,53 +8,27 @@
   :root {
     --background: 0 0% 0%;
     --foreground: 0 0% 100%;
-    
-    --card: 0 0% 4%;
-    --card-foreground: 0 0% 100%;
-    
-    --popover: 0 0% 4%;
-    --popover-foreground: 0 0% 100%;
-    
-    --primary: 0 0% 100%;
-    --primary-foreground: 0 0% 0%;
-    
-    --secondary: 0 0% 12%;
-    --secondary-foreground: 0 0% 100%;
-    
-    --muted: 0 0% 15%;
-    --muted-foreground: 0 0% 63%;
-    
-    --accent: 0 0% 15%;
-    --accent-foreground: 0 0% 100%;
-    
-    --destructive: 0 100% 50%;
-    --destructive-foreground: 0 0% 100%;
-
     --border: 0 0% 15%;
-    --input: 0 0% 15%;
-    --ring: 0 0% 100%;
-
-    --radius: 0px;
   }
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
   body {
-    @apply text-foreground antialiased font-sans selection:bg-zinc-800 selection:text-white;
-    background: radial-gradient(circle at 50% -20%, #1c1c1c 0%, #000000 70%);
-    background-attachment: fixed;
+    @apply bg-[#000000] text-zinc-400 antialiased selection:bg-white/20 selection:text-white;
+    font-family: 'Inter', sans-serif;
     min-height: 100vh;
-    font-family: 'IBM Plex Sans', sans-serif;
   }
+  
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'JetBrains Mono', monospace;
+    @apply text-white tracking-tight;
   }
 }
 
-/* Background Texture */
+.font-mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Subtle background noise to prevent pure black digital flatness, very faint */
 .bg-noise {
   position: fixed;
   top: 0;
@@ -61,25 +37,11 @@
   height: 100vh;
   pointer-events: none;
   z-index: 50;
-  opacity: 0.04;
+  opacity: 0.02;
   background-image: url('https://images.unsplash.com/photo-1585314062340-f1a5a7c9328d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA3MDB8MHwxfHNlYXJjaHwyfHxibGFjayUyMGFic3RyYWN0JTIwdGV4dHVyZXxlbnwwfHx8fDE3ODU4Nzc1NzZ8MA&ixlib=rb-4.1.0&q=85');
   background-size: cover;
   background-position: center;
   mix-blend-mode: screen;
-}
-
-/* Glass Panel Styling with Shades of Black Grading */
-.glass-panel {
-  @apply bg-gradient-to-br from-[#1c1c1c]/70 via-[#0a0a0a]/80 to-[#000000]/95 backdrop-blur-2xl border border-zinc-800/60 shadow-[0_15px_50px_rgba(0,0,0,0.9)];
-  position: relative;
-}
-.glass-panel::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  border-top: 1px solid rgba(255,255,255,0.06);
-  border-left: 1px solid rgba(255,255,255,0.02);
 }
 
 /* Hide scrollbar but allow scroll */
@@ -91,9 +53,9 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #222;
-  border-radius: 0px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #444;
+  background: rgba(255, 255, 255, 0.2);
 }
