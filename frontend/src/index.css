@@ -8,19 +8,19 @@
   :root {
     --background: 0 0% 0%;
     --foreground: 0 0% 100%;
-    --border: 0 0% 15%;
+    --border: 0 0% 12%;
   }
 }
 
 @layer base {
   body {
-    @apply bg-[#020617] text-slate-300 antialiased selection:bg-slate-700 selection:text-white;
+    @apply bg-black text-neutral-300 antialiased selection:bg-neutral-800 selection:text-white;
     font-family: 'Inter', sans-serif;
     min-height: 100vh;
   }
   
   h1, h2, h3, h4, h5, h6 {
-    @apply text-slate-100 tracking-tight;
+    @apply text-white tracking-tight;
   }
 }
 
@@ -28,9 +28,25 @@
   font-family: 'JetBrains Mono', monospace;
 }
 
+/* iOS Glass Footer */
+.ios-glass {
+  background: rgba(10, 10, 10, 0.7);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ios-glass-card {
+  background: rgba(15, 15, 15, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
@@ -41,4 +57,20 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
+}
+
+/* Subtle background noise */
+.bg-noise {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0.03;
+  background-image: url('https://images.unsplash.com/photo-1585314062340-f1a5a7c9328d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA3MDB8MHwxfHNlYXJjaHwyfHxibGFjayUyMGFic3RyYWN0JTIwdGV4dHVyZXxlbnwwfHx8fDE3ODU4Nzc1NzZ8MA&ixlib=rb-4.1.0&q=85');
+  background-size: cover;
+  background-position: center;
+  mix-blend-mode: screen;
 }

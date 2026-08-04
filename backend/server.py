@@ -12,8 +12,11 @@ from datetime import datetime, timezone, timedelta
 from bson import ObjectId
 from pydantic import BaseModel
 from typing import List, Optional
-import httpx
+import requests
 import asyncio
+import urllib3
+
+urllib3.disable_warnings()
 
 app = FastAPI()
 
@@ -57,6 +60,7 @@ async def startup_db_client():
             "status": "active",
             "credits": 999999,
             "limits": "unlimited",
+            "total_checked_ccs": 0,
             "created_at": datetime.now(timezone.utc)
         })
     elif not verify_password(admin_pass, existing["password_hash"]):
@@ -137,26 +141,6 @@ class UserUpdate(BaseModel):
     telegram_id: Optional[str] = None
     shopify_urls: Optional[str] = None
     total_checked_ccs: Optional[int] = None
-@app.patch("/api/auth/me")
-async def update_me(req: UserUpdate, user: dict = Depends(get_current_user)):
-    update_data = {}
-    if req.password is not None and req.password.strip():
-        update_data["password_hash"] = hash_password(req.password)
-    if req.telegram_id is not None:
-        update_data["telegram_id"] = req.telegram_id
-    if req.shopify_urls is not None:
-        update_data["shopify_urls"] = req.shopify_urls
-        
-    if not update_data:
-        raise HTTPException(status_code=400, detail="No fields to update")
-        
-    await db.users.update_one({"_id": ObjectId(user["_id"])}, {"$set": update_data})
-    
-    updated_user = await db.users.find_one({"_id": ObjectId(user["_id"])}, {"password_hash": 0})
-    if updated_user:
-        updated_user["_id"] = str(updated_user["_id"])
-    return updated_user
-
 
 class ProxyCheckRequest(BaseModel):
     proxies: str
@@ -167,7 +151,6 @@ async def login(req: LoginRequest, request: Request, response: Response):
     ip = request.client.host
     identifier = f"{ip}:{req.username}"
     
-    # Check rate limit
     attempts = await db.login_attempts.count_documents({"identifier": identifier})
     if attempts >= 5:
         raise HTTPException(status_code=429, detail="Too many failed attempts. Try again later.")
@@ -195,6 +178,25 @@ async def login(req: LoginRequest, request: Request, response: Response):
 @app.get("/api/auth/me")
 async def get_me(user: dict = Depends(get_current_user)):
     return user
+
+@app.patch("/api/auth/me")
+async def update_me(req: UserUpdate, user: dict = Depends(get_current_user)):
+    update_data = {}
+    if req.password is not None and req.password.strip():
+        update_data["password_hash"] = hash_password(req.password)
+    if req.telegram_id is not None:
+        update_data["telegram_id"] = req.telegram_id
+    if req.shopify_urls is not None:
+        update_data["shopify_urls"] = req.shopify_urls
+        
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No fields to update")
+        
+    await db.users.update_one({"_id": ObjectId(user["_id"])}, {"$set": update_data})
+    updated_user = await db.users.find_one({"_id": ObjectId(user["_id"])}, {"password_hash": 0})
+    if updated_user:
+        updated_user["_id"] = str(updated_user["_id"])
+    return updated_user
 
 @app.post("/api/auth/logout")
 async def logout(response: Response):
@@ -224,6 +226,7 @@ async def create_user(req: UserCreate, admin: dict = Depends(require_admin)):
         "status": "active",
         "credits": req.credits,
         "limits": req.limits,
+        "total_checked_ccs": 0,
         "created_at": datetime.now(timezone.utc)
     }
     result = await db.users.insert_one(new_user)
@@ -234,23 +237,16 @@ async def create_user(req: UserCreate, admin: dict = Depends(require_admin)):
 @app.patch("/api/admin/users/{user_id}")
 async def update_user(user_id: str, req: UserUpdate, admin: dict = Depends(require_admin)):
     update_data = {}
-    if req.status is not None:
-        update_data["status"] = req.status
-    if req.credits is not None:
-        update_data["credits"] = req.credits
-    if req.limits is not None:
-        update_data["limits"] = req.limits
-    if req.password is not None and req.password.strip():
-        update_data["password_hash"] = hash_password(req.password)
+    if req.status is not None: update_data["status"] = req.status
+    if req.credits is not None: update_data["credits"] = req.credits
+    if req.limits is not None: update_data["limits"] = req.limits
+    if req.password is not None and req.password.strip(): update_data["password_hash"] = hash_password(req.password)
         
-    if not update_data:
-        raise HTTPException(status_code=400, detail="No fields to update")
+    if not update_data: raise HTTPException(status_code=400, detail="No fields to update")
         
     await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": update_data})
-    
     updated_user = await db.users.find_one({"_id": ObjectId(user_id)}, {"password_hash": 0})
-    if updated_user:
-        updated_user["_id"] = str(updated_user["_id"])
+    if updated_user: updated_user["_id"] = str(updated_user["_id"])
     return updated_user
 
 @app.delete("/api/admin/users/{user_id}")
@@ -261,6 +257,17 @@ async def delete_user(user_id: str, admin: dict = Depends(require_admin)):
     return {"message": "User deleted"}
 
 # Proxy Routes
+def test_proxy_sync(raw_proxy: str, proxy_url: str) -> bool:
+    proxies = {"http": proxy_url, "https": proxy_url}
+    try:
+        res_stripe = requests.get("https://api.stripe.com/healthcheck", proxies=proxies, timeout=15.0, verify=False)
+        res_shopify = requests.get("https://shopify.com", proxies=proxies, timeout=15.0, verify=False)
+        if res_stripe.status_code and res_shopify.status_code:
+            return True
+    except Exception as e:
+        print(f"Proxy test failed for {raw_proxy}: {e}")
+    return False
+
 @app.get("/api/proxies")
 async def get_proxies(user: dict = Depends(get_current_user)):
     cursor = db.proxies.find({"user_id": str(user["_id"])}).sort("created_at", -1)
@@ -276,7 +283,7 @@ async def delete_proxy(proxy_id: str, user: dict = Depends(get_current_user)):
 
 @app.post("/api/proxies/check")
 async def check_proxies(req: ProxyCheckRequest, user: dict = Depends(get_current_user)):
-    # Sometimes users paste with weird line breaks like \n:, so let's normalize \n: to :
+    # Fix newline issues like `gw.proxyrise.com:443:res-any\n:pgw-...`
     normalized_proxies = req.proxies.replace('\r\n:', ':').replace('\n:', ':')
     proxy_lines = [p.strip() for p in normalized_proxies.split("\n") if p.strip()]
     
@@ -308,25 +315,19 @@ async def check_proxies(req: ProxyCheckRequest, user: dict = Depends(get_current
         else:
             return False, raw_proxy
             
-        try:
-            async with httpx.AsyncClient(proxy=proxy_url, timeout=10.0, verify=False) as client:
-                res_stripe = await client.get("https://api.stripe.com/healthcheck", follow_redirects=True)
-                res_shopify = await client.get("https://shopify.com", follow_redirects=True)
-                
-                if res_stripe.status_code and res_shopify.status_code:
-                    existing = await db.proxies.find_one({"user_id": str(user["_id"]), "proxy_url": proxy_url})
-                    if not existing:
-                        await db.proxies.insert_one({
-                            "user_id": str(user["_id"]),
-                            "raw": raw_proxy,
-                            "proxy_url": proxy_url,
-                            "status": "active",
-                            "created_at": datetime.now(timezone.utc)
-                        })
-                    return True, raw_proxy
-        except Exception as e:
-            print(f"Proxy failed: {raw_proxy} Error: {str(e)}")
-            pass
+        success = await asyncio.to_thread(test_proxy_sync, raw_proxy, proxy_url)
+        
+        if success:
+            existing = await db.proxies.find_one({"user_id": str(user["_id"]), "proxy_url": proxy_url})
+            if not existing:
+                await db.proxies.insert_one({
+                    "user_id": str(user["_id"]),
+                    "raw": raw_proxy,
+                    "proxy_url": proxy_url,
+                    "status": "active",
+                    "created_at": datetime.now(timezone.utc)
+                })
+            return True, raw_proxy
         return False, raw_proxy
 
     tasks = [test_and_save(p) for p in proxy_lines]
