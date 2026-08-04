@@ -461,7 +461,7 @@ const CheckerTab = () => {
   
   const [shopifySiteType, setShopifySiteType] = useState("own");
   const [shopifyCc, setShopifyCc] = useState("");
-
+  
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState([]);
   const [stats, setStats] = useState({ approved: 0, declined: 0, errors: 0 });
@@ -708,9 +708,9 @@ const CheckerTab = () => {
               key={gw.id}
               onClick={() => { if (!running && !shToolsRunning && gw.active) setActiveGateway(gw.id); }}
               disabled={running || shToolsRunning || !gw.active}
-              className={`flex items-center gap-1.5 py-3 px-4 text-base md:text-sm md:py-2 md:px-3 font-medium rounded-xl transition-all whitespace-nowrap ${
+              className={`flex items-center gap-2 py-3 px-5 text-base md:text-sm md:py-2 md:px-4 font-medium rounded-xl transition-all whitespace-nowrap ${
                 activeGateway === gw.id 
-                  ? 'bg-neutral-800 text-white shadow-sm' 
+                  ? 'bg-neutral-800 text-white shadow-sm scale-[1.02]' 
                   : gw.active && !running && !shToolsRunning
                     ? 'text-neutral-500 hover:text-neutral-300 hover:bg-white/5' 
                     : 'text-neutral-600 opacity-50 cursor-not-allowed'

