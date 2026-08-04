@@ -1,0 +1,37 @@
+{
+  "summary": "Backend auth works (POST /api/auth/login returns 200 with correct cookies for SHORIEN/Xiron696@). Frontend login form submits successfully and receives 200 from backend, cookies (access_token, refresh_token) are set in browser context. However, after successful login the app remains on /login and never triggers the void transition or renders the dashboard. Root cause: Login component sets user state via setUser(data.user) but never navigates, AND the /login route has no redirect guard for authenticated users (App.js lines 88-106 and route definitions lines 484-501). Because of this blocker, none of the downstream flows (void animation, admin dashboard, create user, logout, new user login, user dashboard AI-keys placeholder) could be verified.",
+  "tested_scope": ["frontend", "backend", "auth", "integration"],
+  "passed": [
+    "Backend POST /api/auth/login returns 200 with valid access_token/refresh_token cookies for SHORIEN/Xiron696@",
+    "Frontend loads at REACT_APP_BACKEND_URL and renders the VeLuX login page with data-testid selectors (login-username, login-password, login-submit)",
+    "Login form submission triggers /api/auth/login (200 response observed via network capture) and cookies are stored in browser context"
+  ],
+  "failed": [
+    {
+      "area": "Frontend routing / post-login navigation",
+      "issue": "After successful login the app stays on /login and does not redirect to /dashboard or trigger the void transition. The Login component (App.js ~L94-106) only calls setUser + setJustLoggedIn without navigating, and the /login route (App.js ~L485) has no guard to redirect authenticated users. This makes VoidTransition, AdminDashboard, and all downstream flows unreachable via the UI.",
+      "evidence": "Playwright test: POST /api/auth/login -> 200, access_token/refresh_token cookies present in context, yet page.url remains https://velux-proxy-api.preview.emergentagent.com/login and body still shows the login form ('VELUX / ULTIMATE CHECKER PROTOCOL / USERNAME / PASSWORD / INITIALIZE SEQUENCE') even after 8s wait.",
+      "priority": "HIGH"
+    },
+    {
+      "area": "Admin user creation flow",
+      "issue": "Not testable due to the above navigation blocker; create-user-username / create-user-password / create-user-submit form never appears.",
+      "evidence": "wait_for_selector('[data-testid=\"create-user-username\"]') timed out; admin dashboard never rendered.",
+      "priority": "HIGH"
+    },
+    {
+      "area": "Void transition + new-user dashboard",
+      "issue": "Void 'Welcome to NetherWorld' animation and User Dashboard (AI keys placeholder) not reachable due to same navigation blocker.",
+      "evidence": "Blocked by primary auth-navigation issue; not reached.",
+      "priority": "HIGH"
+    }
+  ],
+  "action_items": [
+    "In /app/frontend/src/App.js Login component, after setUser(data.user) call useNavigate('/dashboard') (or navigate('/admin') based on role) so the ProtectedRoute mounts and VoidTransition runs.",
+    "Alternatively (or additionally) guard the /login route so authenticated users are redirected: e.g., wrap Login with a check that Navigate to /dashboard when user is truthy.",
+    "Re-test the entire flow: admin login -> void animation (~5s) -> admin dashboard -> create user -> logout -> new user login -> user dashboard with AI keys placeholder."
+  ],
+  "success_rate": {"backend": "100%", "frontend": "20%"},
+  "retest_needed": true,
+  "full_testing_deferred": true
+}
