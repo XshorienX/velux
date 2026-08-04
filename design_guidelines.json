@@ -1,0 +1,98 @@
+{
+  "theme": {
+    "mode": "dark",
+    "description": "Slate Black and glass theme with ONLY shades of black. Elite, monochromatic, brutalist tech, void-like aesthetic. VeLuX- ultimate Checker.",
+    "archetype": "Swiss Brutalist (Reversed for Dark Mode) mixed with Crystal Glassmorphism"
+  },
+  "typography": {
+    "fonts": {
+      "headings": "JetBrains Mono",
+      "body": "IBM Plex Sans",
+      "accent": "Space Mono"
+    },
+    "hierarchy": {
+      "h1": "text-4xl md:text-5xl lg:text-6xl tracking-tighter font-black uppercase text-white",
+      "h2": "text-2xl md:text-3xl lg:text-4xl tracking-tight font-bold text-white",
+      "h3": "text-xl md:text-2xl tracking-tight font-semibold text-zinc-200",
+      "body": "text-base leading-relaxed text-zinc-400",
+      "label": "text-xs tracking-[0.2em] uppercase font-bold text-zinc-500",
+      "monospace_data": "font-mono text-sm text-zinc-300"
+    },
+    "rules": "Never center-align body text. Use tight tracking for headings. Avoid 'Inter'. Use 'JetBrains Mono' for all headings and numbers."
+  },
+  "colors": {
+    "background": "#000000",
+    "surface_1": "#0A0A0A",
+    "surface_2": "#121212",
+    "border": "rgba(255, 255, 255, 0.08)",
+    "border_hover": "rgba(255, 255, 255, 0.2)",
+    "text_primary": "#FFFFFF",
+    "text_secondary": "#A1A1AA",
+    "text_muted": "#52525B",
+    "accent": "#FFFFFF",
+    "glass_panel": "bg-black/60 backdrop-blur-2xl border border-white/10"
+  },
+  "visual_enhancers": {
+    "textures": "Add a faint SVG noise overlay (opacity 2-3%) across the main layout to break digital flatness.",
+    "glassmorphism": "Use 'Optical Clarity' strategy. bg-black/60, backdrop-blur-2xl, and a strict 1px delicate inner stroke (border-white/10). No muddy grey transparencies.",
+    "shadows": "Replace soft shadows with 1px solid strokes or subtle drop-shadows (drop-shadow-[0_0_15px_rgba(255,255,255,0.05)]).",
+    "grid_borders": "For the admin panel, expose the grid. Use border-r border-b border-white/5 for table cells and dashboard cards.",
+    "corner_radius": "Sharp edges. Use rounded-none or rounded-sm (max 4px). No pill-shaped cards."
+  },
+  "layouts": {
+    "dashboard_grid": "MODE B: High Density Grid. Base grid-cols-1 md:grid-cols-3 lg:grid-cols-4 with gap-6. Use h-full on children to ensure they stretch. No jagged bottoms.",
+    "spacing": "Generous Spacing Philosophy. Use p-8 or p-12 for macro containers. Internal card padding must be p-6.",
+    "alignment": "Mobile-First. Optical alignment over geometrical. Left-align data tables and dense text."
+  },
+  "motion": {
+    "login_transition": "CRITICAL: The 'NetherWorld' transition. On login success: 1. Login form fades out. 2. Background scales down slightly (zoom out) entering a pure black 'void'. 3. Text 'Welcome to NetherWorld......' fades in centrally with a tracking expansion animation. 4. Text fades out, and the Admin Dashboard fades in and scales up from 0.95 to 1.",
+    "hover_states": "Interactive elements must lift slightly (-translate-y-[1px]) and border opacity increases.",
+    "micro_interactions": "Use Framer Motion for layout transitions. Buttons should have a scale: 0.98 on tap."
+  },
+  "components": {
+    "buttons": "Sharp edges (rounded-none). Primary: bg-white text-black hover:bg-zinc-200. Secondary: bg-transparent border border-white/20 text-white hover:bg-white/10.",
+    "inputs": "Shadcn Input heavily customized. bg-black border-white/20 focus:border-white focus:ring-1 focus:ring-white rounded-none. Text must be stark white.",
+    "cards": "Cardless aesthetic. Flat rectangular surfaces. bg-[#0A0A0A] border border-white/10.",
+    "tables": "Dense. border-collapse. Headers: text-xs uppercase tracking-widest text-zinc-500. Rows: border-b border-white/5 hover:bg-white/[0.02]."
+  },
+  "accessibility": {
+    "contrast": "Text over glass MUST have a dark enough background (black/60) to maintain APCA/WCAG AA contrast. Never use pure transparent backgrounds for content areas.",
+    "focus": "Explicit focus rings required for all inputs (focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black).",
+    "motion": "Respect prefers-reduced-motion media query."
+  },
+  "media": {
+    "image_urls": {
+      "background_texture": {
+        "url": "https://images.unsplash.com/photo-1585314062340-f1a5a7c9328d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA3MDB8MHwxfHNlYXJjaHwyfHxibGFjayUyMGFic3RyYWN0JTIwdGV4dHVyZXxlbnwwfHx8fDE3ODU4Nzc1NzZ8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Dark textured plaster wall for subtle background grit. Use at 10-15% opacity behind the main app container.",
+        "category": "background"
+      },
+      "void_space": {
+        "url": "https://images.unsplash.com/photo-1533113354171-490d836238e3?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA0MTJ8MHwxfHNlYXJjaHwxfHxkYXJrJTIwdm9pZCUyMHNwYWNlfGVufDB8fHx8MTc4NTg3NzU3Nnww&ixlib=rb-4.1.0&q=85",
+        "description": "Night sky with stars. Used as an optional backdrop layer during the 'Void' transition.",
+        "category": "transition"
+      }
+    }
+  },
+  "3d_libraries_and_steps": {
+    "libraries": ["framer-motion", "lucide-react", "sonner"],
+    "instructions": "1. Install `framer-motion`, `lucide-react`, `sonner`. 2. Build the Login component wrapped in Framer Motion's AnimatePresence. 3. Build a dedicated 'VoidTransition' component that handles the 'Welcome to NetherWorld......' sequence using Framer Motion. 4. Use standard Shadcn UI primitive logic but strip Vercel styling (remove rounded corners, use monochrome colors)."
+  },
+  "instructions_to_main_agent": "CRITICAL: You are writing .js/.jsx files, NOT .tsx. Strip all TypeScript type annotations from Shadcn components if you import them. Build the app as a single-page flow: Login -> Void Transition -> Admin/User Dashboard. Ensure the theme strictly adheres to the 'ONLY shades of black' rule—no blues, greens, or reds. Use Phosphor Icons or Lucide React.",
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
+    "You tend to converge toward generic outputs. Avoid this: make creative, distinctive frontends that surprise and delight.",
+    "Dark colors look good when used independently without gradients. DO NOT use dark colors as gradients.",
+    "Don't make generic centered layouts. Create depth through layered design elements with z-index hierarchy.",
+    "Use glass-morphism effects with backdrop filters (12-24px blur).",
+    "MUST NOT apply universal transition (e.g., transition: all). Add transitions for specific properties.",
+    "MUST NOT center align the app container (.App { text-align: center; } is banned).",
+    "Use modern button styles relevant to the app style (in this case, sharp and brutalist).",
+    "NEVER use AI assistant Emoji characters.",
+    "Every interaction needs micro-animations.",
+    "Use 2-3x more spacing than feels comfortable.",
+    "Subtle grain textures and noise overlays separate good from extraordinary.",
+    "DO NOT use complete transparent backgrounds in headers, overlays, or any surface that has content under it.",
+    "Use sonner for toasts.",
+    "All interactive and key informational elements MUST include a data-testid attribute."
+  ]
+}
