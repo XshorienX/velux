@@ -53,7 +53,6 @@ function formatApiError(detail) {
   return String(detail);
 }
 
-// Minimal Black Inputs
 const Input = React.forwardRef(({ className, ...props }, ref) => (
   <input
     ref={ref}
@@ -71,7 +70,7 @@ const Textarea = React.forwardRef(({ className, ...props }, ref) => (
 ));
 
 const Button = React.forwardRef(({ className, variant = "default", size = "default", ...props }, ref) => {
-  const base = "inline-flex items-center justify-center whitespace-nowrap rounded-full text-sm font-medium transition-all focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98]";
+  const base = "inline-flex items-center justify-center whitespace-nowrap rounded-full font-medium transition-all focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98]";
   const variants = {
     default: "bg-white text-black hover:bg-neutral-200 shadow-sm",
     outline: "border border-neutral-800 bg-transparent text-neutral-300 hover:bg-neutral-800/80",
@@ -79,9 +78,9 @@ const Button = React.forwardRef(({ className, variant = "default", size = "defau
     danger: "bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20",
   };
   const sizes = {
-    default: "h-12 px-6 py-2",
+    default: "h-12 px-6 py-2 text-sm",
     sm: "h-10 px-4 text-xs",
-    icon: "h-12 w-12",
+    icon: "h-12 w-12 text-sm",
   };
   return (
     <button ref={ref} className={`${base} ${variants[variant]} ${sizes[size]} ${className || ""}`} {...props} />
@@ -118,7 +117,7 @@ const Login = () => {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="min-h-screen flex items-center justify-center p-4 relative bg-black">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-white/[0.015] rounded-full blur-[100px] pointer-events-none"></div>
       
-      <div className="w-full max-w-[400px] bg-[#0A0A0A] border border-neutral-800/80 rounded-2xl p-8 shadow-2xl relative z-10">
+      <div className="w-full max-w-[400px] bg-[#0A0A0A] border border-neutral-800/80 rounded-[2rem] p-8 shadow-2xl relative z-10">
         <div className="flex flex-col items-center text-center mb-8">
           <div className="h-12 w-12 rounded-2xl bg-neutral-900 border border-neutral-800 flex items-center justify-center mb-5 shadow-lg">
             <Terminal className="h-6 w-6 text-white" />
@@ -130,15 +129,15 @@ const Login = () => {
           <div className="space-y-2">
             <label className="text-xs font-medium text-neutral-400 ml-1">Username</label>
             <div className="relative">
-              <User className="absolute left-3.5 top-3.5 h-4 w-4 text-neutral-500" />
-              <Input value={username} onChange={e => setUsername(e.target.value)} className="pl-10" required data-testid="login-username" />
+              <User className="absolute left-4 top-3.5 h-5 w-5 text-neutral-500" />
+              <Input value={username} onChange={e => setUsername(e.target.value)} className="pl-12" required data-testid="login-username" />
             </div>
           </div>
           <div className="space-y-2">
             <label className="text-xs font-medium text-neutral-400 ml-1">Password</label>
             <div className="relative">
-              <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-neutral-500" />
-              <Input type="password" value={password} onChange={e => setPassword(e.target.value)} className="pl-10" required data-testid="login-password" />
+              <Lock className="absolute left-4 top-3.5 h-5 w-5 text-neutral-500" />
+              <Input type="password" value={password} onChange={e => setPassword(e.target.value)} className="pl-12" required data-testid="login-password" />
             </div>
           </div>
           <Button type="submit" className="w-full mt-2" disabled={loading} data-testid="login-submit">
@@ -175,10 +174,10 @@ const AppLayout = ({ children }) => {
   const location = useLocation();
 
   const navItems = [
-    { id: 'home', path: '/app/home', icon: <Home className="w-5 h-5" />, label: 'Home' },
-    { id: 'checker', path: '/app/checker', icon: <Compass className="w-5 h-5" />, label: 'Checker' },
-    { id: 'proxy', path: '/app/proxy', icon: <Globe className="w-5 h-5" />, label: 'Proxy' },
-    { id: 'settings', path: '/app/settings', icon: <SettingsIcon className="w-5 h-5" />, label: 'Settings' }
+    { id: 'home', path: '/app/home', icon: <Home className="w-6 h-6 sm:w-5 sm:h-5" />, label: 'Home' },
+    { id: 'checker', path: '/app/checker', icon: <Compass className="w-6 h-6 sm:w-5 sm:h-5" />, label: 'Checker' },
+    { id: 'proxy', path: '/app/proxy', icon: <Globe className="w-6 h-6 sm:w-5 sm:h-5" />, label: 'Proxy' },
+    { id: 'settings', path: '/app/settings', icon: <SettingsIcon className="w-6 h-6 sm:w-5 sm:h-5" />, label: 'Settings' }
   ];
 
   return (
@@ -205,8 +204,8 @@ const AppLayout = ({ children }) => {
               <span className="text-xs text-white font-mono">{user.credits?.toLocaleString() || 0}</span>
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={logout} className="h-9 w-9 text-neutral-400">
-            <LogOut className="h-4 w-4" />
+          <Button variant="ghost" size="icon" onClick={logout} className="h-10 w-10 text-neutral-400">
+            <LogOut className="h-5 w-5" />
           </Button>
         </div>
       </header>
@@ -215,22 +214,22 @@ const AppLayout = ({ children }) => {
         {children}
       </main>
 
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-sm sm:max-w-md">
-        <div className="ios-glass rounded-3xl p-1.5 flex items-center justify-between shadow-[0_20px_40px_rgba(0,0,0,0.6)]">
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-[24rem] sm:max-w-[28rem]">
+        <div className="ios-glass rounded-full p-2 flex items-center justify-between shadow-[0_20px_40px_rgba(0,0,0,0.6)]">
           {navItems.map(item => {
             const isActive = location.pathname === item.path;
             return (
               <button 
                 key={item.id}
                 onClick={() => navigate(item.path)}
-                className={`relative flex flex-col items-center justify-center w-full h-14 rounded-2xl transition-all duration-300 ${isActive ? 'text-white' : 'text-neutral-500 hover:text-neutral-300'}`}
+                className={`relative flex flex-col items-center justify-center w-full h-16 sm:h-14 rounded-full transition-all duration-300 ${isActive ? 'text-white' : 'text-neutral-500 hover:text-neutral-300'}`}
               >
                 {isActive && (
-                  <motion.div layoutId="active-nav" className="absolute inset-0 bg-white/10 rounded-2xl border border-white/5" transition={{ type: "spring", stiffness: 300, damping: 30 }} />
+                  <motion.div layoutId="active-nav" className="absolute inset-0 bg-white/10 rounded-full border border-white/5" transition={{ type: "spring", stiffness: 300, damping: 30 }} />
                 )}
                 <div className="relative z-10 flex flex-col items-center">
                   <div className={`mb-1 transition-transform ${isActive ? 'scale-110' : ''}`}>{item.icon}</div>
-                  <span className="text-[10px] font-medium tracking-wide">{item.label}</span>
+                  <span className="text-[10px] font-medium tracking-wide hidden sm:block">{item.label}</span>
                 </div>
               </button>
             )
@@ -397,7 +396,7 @@ const ProxyTab = () => {
             <Textarea 
               value={proxies} 
               onChange={e => setProxies(e.target.value)} 
-              placeholder="192.168.1.1:8080\n192.168.1.1:8080:user:pass" 
+              placeholder="192.168.1.1:8080\ngw.proxyrise.com:443:user:pass" 
               className="min-h-[200px] mb-4" 
               data-testid="proxies-textarea"
             />
@@ -462,24 +461,26 @@ const CheckerTab = () => {
   
   const [shopifySiteType, setShopifySiteType] = useState("own");
   const [shopifyCc, setShopifyCc] = useState("");
+  
+  const [shopifyV2Cc, setShopifyV2Cc] = useState("");
 
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState([]);
   const [stats, setStats] = useState({ approved: 0, declined: 0, errors: 0 });
 
   const gateways = [
-    { id: 'stripe', name: 'Stripe', icon: <CreditCard className="w-4 h-4"/>, active: true },
-    { id: 'shopify', name: 'Shopify', icon: <ShoppingBag className="w-4 h-4"/>, active: true },
-    { id: 'braintree', name: 'Braintree', icon: <Code2 className="w-4 h-4"/>, active: false, soon: true },
-    { id: 'paypal', name: 'PayPal', icon: <Globe className="w-4 h-4"/>, active: false, soon: true },
-    { id: 'adyen', name: 'Adyen', icon: <ShieldAlert className="w-4 h-4"/>, active: false, soon: true }
+    { id: 'stripe', name: 'Stripe', icon: <CreditCard className="w-5 h-5 md:w-4 md:h-4"/>, active: true },
+    { id: 'shopify', name: 'Shopify', icon: <ShoppingBag className="w-5 h-5 md:w-4 md:h-4"/>, active: true },
+    { id: 'shopify_v2', name: 'Shopify V2', icon: <Code2 className="w-5 h-5 md:w-4 md:h-4"/>, active: true },
+    { id: 'paypal', name: 'PayPal', icon: <Globe className="w-5 h-5 md:w-4 md:h-4"/>, active: false, soon: true },
+    { id: 'adyen', name: 'Adyen', icon: <ShieldAlert className="w-5 h-5 md:w-4 md:h-4"/>, active: false, soon: true }
   ];
 
   const handleStartChecker = async (e) => {
     e.preventDefault();
     
-    let rawCards = activeGateway === 'stripe' ? stripeCc : shopifyCc;
-    const initialLines = rawCards.split('\\n');
+    let rawCards = activeGateway === 'stripe' ? stripeCc : activeGateway === 'shopify' ? shopifyCc : shopifyV2Cc;
+    const initialLines = rawCards.split('\n');
     let validCards = [];
     
     for (const line of initialLines) {
@@ -500,13 +501,14 @@ const CheckerTab = () => {
       const resultId = Date.now() + i;
       
       remainingCards.shift();
-      if (activeGateway === 'stripe') setStripeCc(remainingCards.join('\\n'));
-      else setShopifyCc(remainingCards.join('\\n'));
+      if (activeGateway === 'stripe') setStripeCc(remainingCards.join('\n'));
+      else if (activeGateway === 'shopify') setShopifyCc(remainingCards.join('\n'));
+      else setShopifyV2Cc(remainingCards.join('\n'));
 
-      // Fetch BIN Info
+      // Fetch BIN Info from backend API now instead of direct client-side to avoid CORS
       let binStr = "";
       try {
-         const binRes = await axios.get(`https://lookup.binlist.net/${card.substring(0,6)}`);
+         const binRes = await axios.get(`/api/bin/${card.substring(0,6)}`);
          const bData = binRes.data;
          binStr = `${bData.bank?.name?.toUpperCase() || 'UNKNOWN BANK'} | ${bData.country?.alpha2 || 'XX'} | ${(bData.type || 'UNKNOWN').toUpperCase()} | ${(bData.scheme || '').toUpperCase()}`;
       } catch (e) {
@@ -541,17 +543,18 @@ const CheckerTab = () => {
         if (data.status === true && data.result) {
           isApproved = data.result.status?.toLowerCase() === "charged" || data.result.status?.toLowerCase() === "live";
           stat = data.result.status?.toUpperCase() || (isApproved ? "LIVE" : "DECLINED");
-          msg = data.result.message || data.result.decline_code || JSON.stringify(data.result);
+          // Clean message formatting instead of raw string
+          msg = data.result.message || data.result.decline_code || "Processed";
           price = data.result.price || data.result.amount || "";
         } else if (data.Status || data.status) {
           const rawStatus = (data.Status || data.status).toString().toUpperCase();
           isApproved = rawStatus === "CHARGED" || rawStatus === "LIVE" || rawStatus === "APPROVED";
           stat = rawStatus;
-          msg = data.Response || data.message || data.result?.message || JSON.stringify(data);
+          msg = data.Response || data.message || data.result?.message || "Processed";
           price = data.Price || data.price || data.amount || "";
         } else {
           stat = "UNKNOWN";
-          msg = JSON.stringify(data);
+          msg = "Unexpected response format";
         }
 
         setResults(prev => prev.map(r => r.id === resultId ? {
@@ -597,22 +600,22 @@ const CheckerTab = () => {
           <p className="text-neutral-500 mt-1">Select a gateway and input payloads to begin validation.</p>
         </div>
         
-        <div className="flex flex-wrap items-center p-1 bg-neutral-900/50 border border-neutral-800/80 rounded-xl w-fit">
+        <div className="flex flex-wrap items-center p-1 bg-neutral-900/50 border border-neutral-800/80 rounded-2xl w-fit">
           {gateways.map(gw => (
             <button 
               key={gw.id}
               onClick={() => { if (!running && gw.active) setActiveGateway(gw.id); }}
               disabled={running || !gw.active}
-              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap ${
+              className={`flex items-center gap-1.5 py-3 px-4 text-base md:text-sm md:py-2 md:px-3 font-medium rounded-xl transition-all whitespace-nowrap ${
                 activeGateway === gw.id 
                   ? 'bg-neutral-800 text-white shadow-sm' 
                   : gw.active && !running
-                    ? 'text-neutral-500 hover:text-neutral-300' 
+                    ? 'text-neutral-500 hover:text-neutral-300 hover:bg-white/5' 
                     : 'text-neutral-600 opacity-50 cursor-not-allowed'
               }`}
             >
               {gw.icon}
-              <span className="hidden sm:inline">{gw.name}</span>
+              <span>{gw.name}</span>
               {gw.soon && <span className="text-[9px] uppercase tracking-wider bg-black border border-neutral-800 px-1.5 py-0.5 rounded-md ml-1">Soon</span>}
             </button>
           ))}
@@ -629,7 +632,7 @@ const CheckerTab = () => {
                   <motion.form key="stripe" initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} onSubmit={handleStartChecker} className="space-y-6">
                     <div className="flex items-center justify-between mb-6">
                       <div className="flex items-center gap-3">
-                        <div className="p-2 bg-indigo-500/10 rounded-lg"><CreditCard className="w-5 h-5 text-indigo-400"/></div>
+                        <div className="p-2 bg-indigo-500/10 rounded-2xl"><CreditCard className="w-6 h-6 text-indigo-400"/></div>
                         <h2 className="text-xl font-medium text-neutral-200">Stripe Integration</h2>
                       </div>
                       <div className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 rounded-lg p-1">
@@ -669,7 +672,7 @@ const CheckerTab = () => {
                   <motion.form key="shopify" initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} onSubmit={handleStartChecker} className="space-y-6">
                     <div className="flex items-center justify-between mb-6">
                       <div className="flex items-center gap-3">
-                        <div className="p-2 bg-green-500/10 rounded-lg"><ShoppingBag className="w-5 h-5 text-green-400"/></div>
+                        <div className="p-2 bg-green-500/10 rounded-2xl"><ShoppingBag className="w-6 h-6 text-green-400"/></div>
                         <h2 className="text-xl font-medium text-neutral-200">Shopify Gateway</h2>
                       </div>
                       <div className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 rounded-lg p-1">
@@ -702,7 +705,7 @@ const CheckerTab = () => {
                 {activeGateway === 'shopify_v2' && (
                   <motion.form key="shopify_v2" initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} onSubmit={handleStartChecker} className="space-y-6">
                     <div className="flex items-center gap-3 mb-6">
-                      <div className="p-2 bg-blue-500/10 rounded-2xl"><Code2 className="w-5 h-5 text-blue-400"/></div>
+                      <div className="p-2 bg-blue-500/10 rounded-2xl"><Code2 className="w-6 h-6 text-blue-400"/></div>
                       <h2 className="text-xl font-medium text-neutral-200">Shopify V2 (TSL)</h2>
                     </div>
                     <div className="bg-white/[0.03] border border-white/[0.05] rounded-2xl px-5 py-4 flex items-start gap-3">
@@ -767,6 +770,7 @@ const CheckerTab = () => {
           )}
         </div>
 
+        {/* Dashboard Side Widget */}
         <div className="lg:col-span-1 space-y-6">
           <div className="ios-glass-card p-6 rounded-3xl flex flex-col items-center text-center justify-center min-h-[200px] relative overflow-hidden">
              <div className="absolute top-0 right-0 p-4 opacity-5"><Activity className="w-32 h-32 text-white"/></div>

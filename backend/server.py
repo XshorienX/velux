@@ -259,6 +259,21 @@ async def delete_user(user_id: str, admin: dict = Depends(require_admin)):
     await db.users.delete_one({"_id": ObjectId(user_id)})
     return {"message": "User deleted"}
 
+# BIN API
+def fetch_bin_info(bin_code: str):
+    try:
+        res = requests.get(f"https://lookup.binlist.net/{bin_code}", timeout=5.0)
+        return res.json()
+    except Exception:
+        return None
+
+@app.get("/api/bin/{bin_code}")
+async def get_bin_info(bin_code: str, user: dict = Depends(get_current_user)):
+    data = await asyncio.to_thread(fetch_bin_info, bin_code)
+    if data:
+        return data
+    return {"error": "Not Found"}
+
 # Proxy Routes
 def test_proxy_sync(raw_proxy: str, proxy_url: str) -> bool:
     proxies = {"http": proxy_url, "https": proxy_url}
@@ -286,7 +301,6 @@ async def delete_proxy(proxy_id: str, user: dict = Depends(get_current_user)):
 
 @app.post("/api/proxies/check")
 async def check_proxies(req: ProxyCheckRequest, user: dict = Depends(get_current_user)):
-    # Fix newline issues like `gw.proxyrise.com:443:res-any\n:pgw-...`
     normalized_proxies = req.proxies.replace('\r\n:', ':').replace('\n:', ':')
     proxy_lines = [p.strip() for p in normalized_proxies.split("\n") if p.strip()]
     
@@ -404,6 +418,14 @@ async def run_checker(req: CheckerRequest, user: dict = Depends(get_current_user
                 "proxy": proxy_url
             }
             res = requests.post("https://api.barryxapi.xyz/auto_sh", json=payload, timeout=20.0, verify=False)
+            data = res.json()
+            
+            await db.users.update_one({"_id": ObjectId(user["_id"])}, {"$inc": {"total_checked_ccs": 1}})
+            return data
+            
+        elif req.gateway == "shopify_v2":
+            url = f"https://gates.valyrian.cc/autoshopify/curl/check?card={req.card}&proxy={proxy_url}"
+            res = requests.get(url, timeout=30.0, verify=False)
             data = res.json()
             
             await db.users.update_one({"_id": ObjectId(user["_id"])}, {"$inc": {"total_checked_ccs": 1}})
