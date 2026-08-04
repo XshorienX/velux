@@ -57,7 +57,7 @@ function formatApiError(detail) {
 const Input = React.forwardRef(({ className, ...props }, ref) => (
   <input
     ref={ref}
-    className={`flex h-11 w-full rounded-xl border border-neutral-800 bg-neutral-900/40 px-4 py-2 text-sm text-neutral-200 placeholder:text-neutral-600 focus-visible:outline-none focus-visible:border-neutral-500 focus-visible:ring-1 focus-visible:ring-neutral-500 transition-all ${className || ""}`}
+    className={`flex h-12 w-full rounded-full border border-neutral-800 bg-neutral-900/40 px-5 py-2 text-sm text-neutral-200 placeholder:text-neutral-600 focus-visible:outline-none focus-visible:border-neutral-500 focus-visible:ring-1 focus-visible:ring-neutral-500 transition-all ${className || ""}`}
     {...props}
   />
 ));
@@ -65,13 +65,13 @@ const Input = React.forwardRef(({ className, ...props }, ref) => (
 const Textarea = React.forwardRef(({ className, ...props }, ref) => (
   <textarea
     ref={ref}
-    className={`flex min-h-[120px] w-full rounded-xl border border-neutral-800 bg-neutral-900/40 px-4 py-3 text-sm text-neutral-200 placeholder:text-neutral-600 focus-visible:outline-none focus-visible:border-neutral-500 focus-visible:ring-1 focus-visible:ring-neutral-500 transition-all resize-y font-mono ${className || ""}`}
+    className={`flex min-h-[120px] w-full rounded-3xl border border-neutral-800 bg-neutral-900/40 px-5 py-4 text-sm text-neutral-200 placeholder:text-neutral-600 focus-visible:outline-none focus-visible:border-neutral-500 focus-visible:ring-1 focus-visible:ring-neutral-500 transition-all resize-y font-mono ${className || ""}`}
     {...props}
   />
 ));
 
 const Button = React.forwardRef(({ className, variant = "default", size = "default", ...props }, ref) => {
-  const base = "inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-medium transition-all focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98]";
+  const base = "inline-flex items-center justify-center whitespace-nowrap rounded-full text-sm font-medium transition-all focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98]";
   const variants = {
     default: "bg-white text-black hover:bg-neutral-200 shadow-sm",
     outline: "border border-neutral-800 bg-transparent text-neutral-300 hover:bg-neutral-800/80",
@@ -79,9 +79,9 @@ const Button = React.forwardRef(({ className, variant = "default", size = "defau
     danger: "bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20",
   };
   const sizes = {
-    default: "h-11 px-4 py-2",
-    sm: "h-9 rounded-lg px-3 text-xs",
-    icon: "h-10 w-10",
+    default: "h-12 px-6 py-2",
+    sm: "h-10 px-4 text-xs",
+    icon: "h-12 w-12",
   };
   return (
     <button ref={ref} className={`${base} ${variants[variant]} ${sizes[size]} ${className || ""}`} {...props} />
@@ -462,6 +462,8 @@ const CheckerTab = () => {
   
   const [shopifySiteType, setShopifySiteType] = useState("own");
   const [shopifyCc, setShopifyCc] = useState("");
+  
+  const [shopifyV2Cc, setShopifyV2Cc] = useState("");
 
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState([]);
@@ -470,7 +472,7 @@ const CheckerTab = () => {
   const gateways = [
     { id: 'stripe', name: 'Stripe', icon: <CreditCard className="w-4 h-4"/>, active: true },
     { id: 'shopify', name: 'Shopify', icon: <ShoppingBag className="w-4 h-4"/>, active: true },
-    { id: 'braintree', name: 'Braintree', icon: <Code2 className="w-4 h-4"/>, active: false, soon: true },
+    { id: 'shopify_v2', name: 'Shopify V2', icon: <Code2 className="w-4 h-4"/>, active: true },
     { id: 'paypal', name: 'PayPal', icon: <Globe className="w-4 h-4"/>, active: false, soon: true },
     { id: 'adyen', name: 'Adyen', icon: <ShieldAlert className="w-4 h-4"/>, active: false, soon: true }
   ];
@@ -478,7 +480,7 @@ const CheckerTab = () => {
   const handleStartChecker = async (e) => {
     e.preventDefault();
     
-    let rawCards = activeGateway === 'stripe' ? stripeCc : shopifyCc;
+    let rawCards = activeGateway === 'stripe' ? stripeCc : activeGateway === 'shopify' ? shopifyCc : shopifyV2Cc;
     const initialLines = rawCards.split('\n');
     let validCards = [];
     
@@ -500,7 +502,8 @@ const CheckerTab = () => {
       
       remainingCards.shift();
       if (activeGateway === 'stripe') setStripeCc(remainingCards.join('\n'));
-      else setShopifyCc(remainingCards.join('\n'));
+      else if (activeGateway === 'shopify') setShopifyCc(remainingCards.join('\n'));
+      else setShopifyV2Cc(remainingCards.join('\n'));
 
       try {
         const payload = {
@@ -522,6 +525,12 @@ const CheckerTab = () => {
         } else if (data.Status) {
           isApproved = data.Status.toUpperCase() === "CHARGED" || data.Status.toUpperCase() === "LIVE";
           messageStr = data.Response || JSON.stringify(data);
+        } else if (data.status === "CHARGED" || data.charged === true || data.status === "LIVE") {
+          isApproved = true;
+          messageStr = data.message || "Charged / Approved";
+        } else if (data.status === "DECLINED") {
+          isApproved = false;
+          messageStr = data.message || "Declined";
         } else {
           messageStr = data.message || JSON.stringify(data);
         }
@@ -657,17 +666,26 @@ const CheckerTab = () => {
                   </motion.form>
                 )}
 
-                {activeGateway === 'braintree' && (
-                  <motion.form key="braintree" initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} onSubmit={(e) => e.preventDefault()} className="space-y-6">
+                {activeGateway === 'shopify_v2' && (
+                  <motion.form key="shopify_v2" initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} onSubmit={handleStartChecker} className="space-y-6">
                     <div className="flex items-center gap-3 mb-6">
-                      <div className="p-2 bg-blue-500/10 rounded-lg"><Code2 className="w-5 h-5 text-blue-400"/></div>
-                      <h2 className="text-xl font-medium text-neutral-200">Braintree Integration</h2>
+                      <div className="p-2 bg-blue-500/10 rounded-2xl"><Code2 className="w-5 h-5 text-blue-400"/></div>
+                      <h2 className="text-xl font-medium text-neutral-200">Shopify V2 (TSL)</h2>
+                    </div>
+                    <div className="bg-white/[0.03] border border-white/[0.05] rounded-2xl px-5 py-4 flex items-start gap-3">
+                       <Check className="w-5 h-5 text-green-500 mt-0.5" />
+                       <div>
+                         <span className="text-sm font-medium text-neutral-300 block mb-1">Inbuilt Product Module Active</span>
+                         <span className="text-xs text-neutral-500">This gateway doesn't require product URLs and bypasses 429 rate limits natively.</span>
+                       </div>
                     </div>
                     <div className="space-y-2">
                       <label className="text-xs font-medium text-neutral-400 ml-1">Card Payloads</label>
-                      <Textarea placeholder="4111...|12|25|123" value={stripeCc} onChange={(e) => setStripeCc(e.target.value)} className="min-h-[250px]" required disabled />
+                      <Textarea placeholder="4111...|12|25|123" value={shopifyV2Cc} onChange={(e) => setShopifyV2Cc(e.target.value)} className="min-h-[250px]" required disabled={running} />
                     </div>
-                    <Button type="button" disabled className="w-full gap-2 mt-2 bg-neutral-900 border border-neutral-800 text-neutral-500">Processing Module Offline</Button>
+                    <Button type="submit" disabled={running} className="w-full gap-2 mt-2">
+                      {running ? <><div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div> Validating...</> : <><Play className="w-4 h-4" /> Start Validation</>}
+                    </Button>
                   </motion.form>
                 )}
 

