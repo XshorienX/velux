@@ -89,7 +89,14 @@ const Login = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const { setUser, setJustLoggedIn } = useAuth();
+  const { user, setUser, setJustLoggedIn } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user) {
+      navigate(user.role === "admin" ? "/admin" : "/dashboard", { replace: true });
+    }
+  }, [user, navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -98,6 +105,7 @@ const Login = () => {
       const { data } = await axios.post("/api/auth/login", { username, password });
       setJustLoggedIn(true);
       setUser(data.user);
+      navigate(data.user.role === "admin" ? "/admin" : "/dashboard", { replace: true });
     } catch (e) {
       toast.error(formatApiError(e.response?.data?.detail) || "Login failed");
     } finally {

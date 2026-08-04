@@ -1,0 +1,19 @@
+{
+  "summary": "Full end-to-end flow verified after main agent added useNavigate. Admin (SHORIEN/Xiron696@) logs in successfully, void transition runs (~5s), redirects to /admin dashboard. Admin creates a new user via the Initialize Entity form (deploy button), logs out via header icon, then the newly created user logs in, void animation runs, and is redirected to /dashboard which correctly renders the AI keys / Checker Protocol placeholder (Protocol Status, Proxy Node COMING SOON, AI API Vault COMING SOON, AWAITING DEPLOYMENT). Backend /api/auth/login also returns 200 with valid user payload for SHORIEN.",
+  "tested_scope": ["frontend", "backend", "auth", "integration"],
+  "passed": [
+    "Backend POST /api/auth/login returns 200 with valid user payload for SHORIEN/Xiron696@",
+    "Admin login redirects to /admin after void transition (~5s)",
+    "Admin dashboard renders SYSTEM ADMINISTRATION with Entity Matrix table and Initialize Entity form",
+    "Admin can create a new user via create-user-username / create-user-password / create-user-submit (deploy)",
+    "Logout works and returns to /login",
+    "Newly created user can log in with provided credentials",
+    "User dashboard at /dashboard displays CHECKER PROTOCOL with AI keys placeholder (Protocol Status, Proxy Node, AI API Vault, AWAITING DEPLOYMENT)",
+    "Header shows correct role tag ([ADMIN] vs [USER]), user ID and CREDITS value (100 for new user)"
+  ],
+  "failed": [],
+  "action_items": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "retest_needed": false,
+  "full_testing_deferred": true
+}
