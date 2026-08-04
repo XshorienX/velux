@@ -394,5 +394,3 @@ async def run_checker(req: CheckerRequest, user: dict = Depends(get_current_user
             
     except Exception as e:
         return {"status": False, "message": f"Engine Error: {str(e)}"}
-
-    }
