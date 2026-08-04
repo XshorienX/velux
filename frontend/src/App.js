@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-route
 import { Toaster, toast } from "sonner";
 import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
-import { Lock, User, Terminal, ChevronRight, LogOut, Search, Activity, ShieldAlert, Cpu, Plus, MoreHorizontal } from "lucide-react";
+import { Lock, User, Terminal, ChevronRight, LogOut, Search, Activity, ShieldAlert, Cpu, Plus, CreditCard, ShoppingBag, Code2, Play } from "lucide-react";
 
 axios.defaults.baseURL = process.env.REACT_APP_BACKEND_URL;
 axios.defaults.withCredentials = true;
@@ -62,6 +62,14 @@ const Input = React.forwardRef(({ className, ...props }, ref) => (
   <input
     ref={ref}
     className={`flex h-11 w-full rounded-xl border border-white/10 bg-white/[0.02] px-4 py-2 text-sm text-white placeholder:text-zinc-600 focus-visible:outline-none focus-visible:border-white/20 focus-visible:ring-1 focus-visible:ring-white/20 transition-all ${className || ""}`}
+    {...props}
+  />
+));
+
+const Textarea = React.forwardRef(({ className, ...props }, ref) => (
+  <textarea
+    ref={ref}
+    className={`flex min-h-[120px] w-full rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus-visible:outline-none focus-visible:border-white/20 focus-visible:ring-1 focus-visible:ring-white/20 transition-all resize-y font-mono ${className || ""}`}
     {...props}
   />
 ));
@@ -183,7 +191,7 @@ const VoidTransition = ({ onComplete }) => {
   useEffect(() => {
     const timer = setTimeout(() => {
       onComplete();
-    }, 3000); // Shortened transition for a snappier experience
+    }, 3000); 
     return () => clearTimeout(timer);
   }, [onComplete]);
 
@@ -426,49 +434,203 @@ const AdminDashboard = () => {
 };
 
 const UserDashboard = () => {
+  const [activeGateway, setActiveGateway] = useState("stripe");
+
+  // Gateway form states
+  const [stripeSk, setStripeSk] = useState("");
+  const [stripeCc, setStripeCc] = useState("");
+  
+  const [shopifyUrls, setShopifyUrls] = useState("");
+  const [shopifyCc, setShopifyCc] = useState("");
+
+  const handleStartChecker = (e) => {
+    e.preventDefault();
+    toast.info("Checker engine is currently initializing. Please stand by.");
+  };
+
   return (
-    <DashboardLayout title="Overview">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-[#09090b] border border-white/5 p-6 rounded-2xl shadow-xl relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-            <Activity className="w-24 h-24" />
-          </div>
-          <div className="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 relative z-10">
-            <Activity className="h-5 w-5 text-white" />
-          </div>
-          <h3 className="font-medium text-white mb-2 relative z-10">Protocol Status</h3>
-          <p className="text-zinc-500 text-sm leading-relaxed relative z-10">Main AI key checker module is currently offline. Awaiting sequence initialization.</p>
-        </div>
+    <DashboardLayout title="Checker Protocol">
+      
+      <div className="flex items-center p-1 space-x-1 bg-white/[0.02] border border-white/5 rounded-xl w-fit mb-2 shadow-sm">
+        <button 
+          onClick={() => setActiveGateway('stripe')}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeGateway === 'stripe' ? 'bg-white/10 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+        >
+          <CreditCard className="w-4 h-4" />
+          Stripe
+        </button>
+        <button 
+          onClick={() => setActiveGateway('shopify')}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeGateway === 'shopify' ? 'bg-white/10 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+        >
+          <ShoppingBag className="w-4 h-4" />
+          Shopify
+        </button>
+        <button 
+          onClick={() => setActiveGateway('braintree')}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeGateway === 'braintree' ? 'bg-white/10 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+        >
+          <Code2 className="w-4 h-4" />
+          Braintree
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         
-        <div className="bg-[#09090b] border border-white/5 p-6 rounded-2xl shadow-xl relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-            <Cpu className="w-24 h-24" />
-          </div>
-          <div className="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 relative z-10">
-            <Cpu className="h-5 w-5 text-zinc-400" />
-          </div>
-          <h3 className="font-medium text-zinc-300 mb-2 relative z-10">Proxy Node</h3>
-          <p className="text-zinc-600 text-sm leading-relaxed relative z-10"><span className="text-xs font-semibold uppercase text-zinc-400 mr-2">Coming Soon</span> High-speed HTTP/SOCKS5 validation engine.</p>
+        {/* Main Checker Interface */}
+        <div className="xl:col-span-2">
+          
+          <AnimatePresence mode="wait">
+            
+            {activeGateway === 'stripe' && (
+              <motion.div 
+                key="stripe"
+                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}
+                className="bg-[#09090b] border border-white/5 p-6 md:p-8 rounded-2xl shadow-xl"
+              >
+                <div className="mb-6">
+                  <h2 className="text-xl font-semibold text-white">Stripe Validation</h2>
+                  <p className="text-sm text-zinc-500 mt-1">Check cards against a live Stripe Secret Key.</p>
+                </div>
+
+                <form onSubmit={handleStartChecker} className="space-y-5">
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-zinc-400 ml-1">Stripe Secret Key (sk_live_...)</label>
+                    <Input 
+                      type="password"
+                      placeholder="sk_live_..."
+                      value={stripeSk}
+                      onChange={(e) => setStripeSk(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-zinc-400 ml-1">Credit Card List</label>
+                    <Textarea 
+                      placeholder="4111111111111111|12|2025|123&#10;5111111111111111|09|2026|456"
+                      value={stripeCc}
+                      onChange={(e) => setStripeCc(e.target.value)}
+                      className="min-h-[200px]"
+                      required
+                    />
+                    <p className="text-[10px] text-zinc-600 ml-1">Format: CC|MM|YY|CVV</p>
+                  </div>
+                  <div className="pt-2">
+                    <Button type="submit" className="w-full sm:w-auto min-w-[200px] gap-2">
+                      <Play className="w-4 h-4" />
+                      Start Checker
+                    </Button>
+                  </div>
+                </form>
+              </motion.div>
+            )}
+
+            {activeGateway === 'shopify' && (
+              <motion.div 
+                key="shopify"
+                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}
+                className="bg-[#09090b] border border-white/5 p-6 md:p-8 rounded-2xl shadow-xl"
+              >
+                <div className="mb-6">
+                  <h2 className="text-xl font-semibold text-white">Shopify Gateway</h2>
+                  <p className="text-sm text-zinc-500 mt-1">Check cards via live Shopify product checkout routes.</p>
+                </div>
+
+                <form onSubmit={handleStartChecker} className="space-y-5">
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-zinc-400 ml-1">Product URLs</label>
+                    <Textarea 
+                      placeholder="https://store.com/products/item-1&#10;https://store.com/products/item-2"
+                      value={shopifyUrls}
+                      onChange={(e) => setShopifyUrls(e.target.value)}
+                      className="min-h-[100px]"
+                      required
+                    />
+                    <p className="text-[10px] text-zinc-600 ml-1">One URL per line.</p>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-zinc-400 ml-1">Credit Card List</label>
+                    <Textarea 
+                      placeholder="4111111111111111|12|2025|123"
+                      value={shopifyCc}
+                      onChange={(e) => setShopifyCc(e.target.value)}
+                      className="min-h-[150px]"
+                      required
+                    />
+                    <p className="text-[10px] text-zinc-600 ml-1">Format: CC|MM|YY|CVV</p>
+                  </div>
+                  <div className="pt-2">
+                    <Button type="submit" className="w-full sm:w-auto min-w-[200px] gap-2">
+                      <Play className="w-4 h-4" />
+                      Start Checker
+                    </Button>
+                  </div>
+                </form>
+              </motion.div>
+            )}
+
+            {activeGateway === 'braintree' && (
+              <motion.div 
+                key="braintree"
+                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}
+                className="bg-[#09090b] border border-white/5 p-6 md:p-8 rounded-2xl shadow-xl min-h-[450px] flex flex-col items-center justify-center text-center relative overflow-hidden group"
+              >
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(255,255,255,0.03)_0%,_transparent_70%)] opacity-0 group-hover:opacity-100 transition-opacity duration-1000"></div>
+                <div className="h-16 w-16 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center justify-center mb-6 relative z-10">
+                  <Code2 className="h-8 w-8 text-zinc-600" />
+                </div>
+                <h2 className="text-xl font-medium text-white mb-2 relative z-10">Braintree Integration</h2>
+                <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-xs font-medium text-zinc-400 mb-4 inline-block relative z-10">Coming Soon</span>
+                <p className="text-zinc-500 max-w-sm mx-auto leading-relaxed relative z-10">
+                  The Braintree processing module is currently under active development. It will support direct client token extraction and payload validation.
+                </p>
+              </motion.div>
+            )}
+
+          </AnimatePresence>
+
         </div>
 
-        <div className="bg-[#09090b] border border-white/5 p-6 rounded-2xl shadow-xl relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-            <ShieldAlert className="w-24 h-24" />
+        {/* Status Sidebar */}
+        <div className="xl:col-span-1 space-y-6">
+          <div className="bg-[#09090b] border border-white/5 p-6 rounded-2xl shadow-xl">
+             <div className="flex items-center gap-3 mb-4">
+                <div className="h-8 w-8 rounded-lg bg-green-500/10 border border-green-500/20 flex items-center justify-center">
+                  <Activity className="h-4 w-4 text-green-500" />
+                </div>
+                <h3 className="font-medium text-white">System Status</h3>
+             </div>
+             <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-zinc-500">Core Engine</span>
+                  <span className="text-sm text-green-500 font-medium">Online</span>
+                </div>
+                <div className="h-px w-full bg-white/5"></div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-zinc-500">Proxy Nodes</span>
+                  <span className="text-sm text-zinc-400 font-medium">0 / 0 Active</span>
+                </div>
+                <div className="h-px w-full bg-white/5"></div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-zinc-500">API Vault</span>
+                  <span className="text-[10px] uppercase font-bold text-zinc-600 tracking-wider">Deploying</span>
+                </div>
+             </div>
           </div>
-          <div className="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 relative z-10">
-            <ShieldAlert className="h-5 w-5 text-zinc-400" />
+
+          <div className="bg-[#09090b] border border-white/5 p-6 rounded-2xl shadow-xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
+              <Cpu className="w-16 h-16" />
+            </div>
+            <div className="h-8 w-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center mb-4 relative z-10">
+              <Cpu className="h-4 w-4 text-zinc-400" />
+            </div>
+            <h3 className="font-medium text-zinc-300 mb-2 relative z-10">Dedicated Proxies</h3>
+            <p className="text-zinc-600 text-sm leading-relaxed relative z-10"><span className="text-[10px] font-semibold uppercase text-zinc-400 mr-2 bg-white/5 px-2 py-0.5 rounded">Setup</span> Configure proxies before starting the checker to avoid rate limits.</p>
+            <Button variant="outline" size="sm" className="w-full mt-4 mt-4 relative z-10" onClick={() => toast("Proxy management opening...")}>Manage Nodes</Button>
           </div>
-          <h3 className="font-medium text-zinc-300 mb-2 relative z-10">AI API Vault</h3>
-          <p className="text-zinc-600 text-sm leading-relaxed relative z-10"><span className="text-xs font-semibold uppercase text-zinc-400 mr-2">Coming Soon</span> Multi-provider key validation and quota checking.</p>
         </div>
-      </div>
-      
-      <div className="mt-8 bg-[#09090b] border border-white/5 rounded-2xl shadow-xl p-12 flex flex-col items-center justify-center text-center">
-        <div className="h-16 w-16 rounded-full bg-white/[0.02] border border-white/5 flex items-center justify-center mb-6">
-          <Search className="h-6 w-6 text-zinc-500" />
-        </div>
-        <h2 className="text-xl font-medium text-white mb-3">Awaiting Deployment</h2>
-        <p className="text-zinc-500 max-w-md mx-auto leading-relaxed">The primary checker interface is currently being deployed. Please check back later for the next system update.</p>
+
       </div>
     </DashboardLayout>
   );
