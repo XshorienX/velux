@@ -435,12 +435,18 @@ const ProxyTab = () => {
 };
 
 const CheckerTab = () => {
-  const { user } = useAuth();
+  const { user, checkAuth } = useAuth();
   const [activeGateway, setActiveGateway] = useState("stripe");
+  
   const [stripeSk, setStripeSk] = useState("");
   const [stripeCc, setStripeCc] = useState("");
   const [shopifyUrls, setShopifyUrls] = useState(user.shopify_urls || "");
   const [shopifyCc, setShopifyCc] = useState("");
+
+  const [running, setRunning] = useState(false);
+  const [results, setResults] = useState([]);
+  
+  const [stats, setStats] = useState({ approved: 0, declined: 0, errors: 0 });
 
   const gateways = [
     { id: 'stripe', name: 'Stripe', icon: <CreditCard className="w-4 h-4"/>, active: true },
@@ -450,9 +456,56 @@ const CheckerTab = () => {
     { id: 'adyen', name: 'Adyen', icon: <ShieldAlert className="w-4 h-4"/>, active: false, soon: true }
   ];
 
-  const handleStartChecker = (e) => {
+  const handleStartChecker = async (e) => {
     e.preventDefault();
-    toast.info("Checker engine initializing. Testing cards...");
+    
+    let rawCards = activeGateway === 'stripe' ? stripeCc : shopifyCc;
+    const cards = rawCards.split('\n').map(c => c.trim()).filter(c => c);
+    
+    if (cards.length === 0) return toast.error("No cards provided.");
+    
+    let urls = shopifyUrls.split('\n').map(u => u.trim()).filter(u => u);
+    if (activeGateway === 'shopify' && urls.length === 0) return toast.error("No product URLs provided.");
+
+    setRunning(true);
+    setResults([]);
+    setStats({ approved: 0, declined: 0, errors: 0 });
+    toast.info("Checker engine initialized. Connecting to nodes...");
+
+    for (let i = 0; i < cards.length; i++) {
+      const card = cards[i];
+      try {
+        const payload = {
+          gateway: activeGateway,
+          card: card,
+          sk: activeGateway === 'stripe' ? stripeSk : undefined,
+          product_url: activeGateway === 'shopify' ? urls[Math.floor(Math.random() * urls.length)] : undefined
+        };
+        
+        const { data } = await axios.post("/api/checker/run", payload);
+        
+        let isApproved = data.status === true || (data.result && data.result.status === "charged");
+        
+        setResults(prev => [{ card, response: data, isApproved, time: new Date().toLocaleTimeString() }, ...prev]);
+        
+        if (isApproved) {
+          setStats(prev => ({ ...prev, approved: prev.approved + 1 }));
+        } else {
+          setStats(prev => ({ ...prev, declined: prev.declined + 1 }));
+        }
+        
+        // Update user credits/total secretly
+        if (i % 5 === 0) checkAuth();
+        
+      } catch (err) {
+        setResults(prev => [{ card, response: { message: "Network Error" }, isApproved: false, error: true, time: new Date().toLocaleTimeString() }, ...prev]);
+        setStats(prev => ({ ...prev, errors: prev.errors + 1 }));
+      }
+    }
+    
+    setRunning(false);
+    checkAuth();
+    toast.success("Validation sequence complete.");
   };
 
   return (
@@ -462,70 +515,88 @@ const CheckerTab = () => {
           <h1 className="text-2xl md:text-3xl font-semibold text-white tracking-tight">Validation Engine</h1>
           <p className="text-neutral-500 mt-1">Select a gateway and input payloads to begin validation.</p>
         </div>
+        
+        {/* Gateway Selection Row */}
+        <div className="flex flex-wrap items-center p-1 bg-neutral-900/50 border border-neutral-800/80 rounded-xl w-fit">
+          {gateways.map(gw => (
+            <button 
+              key={gw.id}
+              onClick={() => { if (!running && gw.active) setActiveGateway(gw.id); }}
+              disabled={running || !gw.active}
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap ${
+                activeGateway === gw.id 
+                  ? 'bg-neutral-800 text-white shadow-sm' 
+                  : gw.active && !running
+                    ? 'text-neutral-500 hover:text-neutral-300' 
+                    : 'text-neutral-600 opacity-50 cursor-not-allowed'
+              }`}
+            >
+              {gw.icon}
+              <span className="hidden sm:inline">{gw.name}</span>
+              {gw.soon && <span className="text-[9px] uppercase tracking-wider bg-black border border-neutral-800 px-1.5 py-0.5 rounded-md ml-1">Soon</span>}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8">
         {/* Checker Interface */}
-        <div className="lg:col-span-3">
-          <div className="ios-glass-card rounded-3xl overflow-hidden min-h-[500px]">
-            {/* Gateway Tabs inside the card */}
-            <div className="flex overflow-x-auto no-scrollbar border-b border-neutral-800/50 p-2">
-              {gateways.map(gw => (
-                <button 
-                  key={gw.id}
-                  onClick={() => gw.active && setActiveGateway(gw.id)}
-                  disabled={!gw.active}
-                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium rounded-2xl transition-all whitespace-nowrap ${
-                    activeGateway === gw.id 
-                      ? 'bg-white/10 text-white' 
-                      : gw.active 
-                        ? 'text-neutral-500 hover:text-neutral-300 hover:bg-white/5' 
-                        : 'text-neutral-600 opacity-50 cursor-not-allowed'
-                  }`}
-                >
-                  {gw.icon}
-                  <span>{gw.name}</span>
-                  {gw.soon && <span className="text-[9px] uppercase tracking-wider bg-neutral-900 border border-neutral-800 px-1.5 py-0.5 rounded-md ml-1">Soon</span>}
-                </button>
-              ))}
-            </div>
-
+        <div className="lg:col-span-3 space-y-6">
+          <div className="ios-glass-card rounded-3xl overflow-hidden min-h-[450px]">
             <div className="p-6 md:p-8">
               <AnimatePresence mode="wait">
                 
                 {activeGateway === 'stripe' && (
                   <motion.form key="stripe" initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} onSubmit={handleStartChecker} className="space-y-6">
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-indigo-500/10 rounded-lg"><CreditCard className="w-5 h-5 text-indigo-400"/></div>
+                        <h2 className="text-xl font-medium text-neutral-200">Stripe Integration</h2>
+                      </div>
+                    </div>
                     <div className="space-y-2">
                       <label className="text-xs font-medium text-neutral-400 ml-1">Secret Key</label>
-                      <Input type="password" placeholder="sk_live_..." value={stripeSk} onChange={(e) => setStripeSk(e.target.value)} required />
+                      <Input type="password" placeholder="sk_live_..." value={stripeSk} onChange={(e) => setStripeSk(e.target.value)} required disabled={running} />
                     </div>
                     <div className="space-y-2">
                       <label className="text-xs font-medium text-neutral-400 ml-1">Card Payloads</label>
-                      <Textarea placeholder="4111...|12|25|123" value={stripeCc} onChange={(e) => setStripeCc(e.target.value)} className="min-h-[250px]" required />
+                      <Textarea placeholder="4111...|12|25|123" value={stripeCc} onChange={(e) => setStripeCc(e.target.value)} className="min-h-[200px]" required disabled={running} />
                     </div>
-                    <Button type="submit" className="w-full gap-2 mt-2"><Play className="w-4 h-4" /> Start Validation</Button>
+                    <Button type="submit" disabled={running} className="w-full gap-2 mt-2">
+                      {running ? <><div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div> Validating...</> : <><Play className="w-4 h-4" /> Start Validation</>}
+                    </Button>
                   </motion.form>
                 )}
 
                 {activeGateway === 'shopify' && (
                   <motion.form key="shopify" initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} onSubmit={handleStartChecker} className="space-y-6">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="p-2 bg-green-500/10 rounded-lg"><ShoppingBag className="w-5 h-5 text-green-400"/></div>
+                      <h2 className="text-xl font-medium text-neutral-200">Shopify Gateway</h2>
+                    </div>
                     <div className="space-y-2">
-                      <label className="text-xs font-medium text-neutral-400 ml-1">Target URLs</label>
-                      <Textarea placeholder="https://store.com/products/item-1" value={shopifyUrls} onChange={(e) => setShopifyUrls(e.target.value)} className="min-h-[100px]" required />
+                      <label className="text-xs font-medium text-neutral-400 ml-1">Target URLs (One per line)</label>
+                      <Textarea placeholder="https://store.com/products/item-1" value={shopifyUrls} onChange={(e) => setShopifyUrls(e.target.value)} className="min-h-[100px]" required disabled={running} />
                     </div>
                     <div className="space-y-2">
                       <label className="text-xs font-medium text-neutral-400 ml-1">Card Payloads</label>
-                      <Textarea placeholder="4111...|12|25|123" value={shopifyCc} onChange={(e) => setShopifyCc(e.target.value)} className="min-h-[180px]" required />
+                      <Textarea placeholder="4111...|12|25|123" value={shopifyCc} onChange={(e) => setShopifyCc(e.target.value)} className="min-h-[150px]" required disabled={running} />
                     </div>
-                    <Button type="submit" className="w-full gap-2 mt-2"><Play className="w-4 h-4" /> Start Validation</Button>
+                    <Button type="submit" disabled={running} className="w-full gap-2 mt-2">
+                      {running ? <><div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div> Validating...</> : <><Play className="w-4 h-4" /> Start Validation</>}
+                    </Button>
                   </motion.form>
                 )}
 
                 {activeGateway === 'braintree' && (
-                  <motion.form key="braintree" initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} onSubmit={handleStartChecker} className="space-y-6">
+                  <motion.form key="braintree" initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} onSubmit={(e) => e.preventDefault()} className="space-y-6">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="p-2 bg-blue-500/10 rounded-lg"><Code2 className="w-5 h-5 text-blue-400"/></div>
+                      <h2 className="text-xl font-medium text-neutral-200">Braintree Integration</h2>
+                    </div>
                     <div className="space-y-2">
                       <label className="text-xs font-medium text-neutral-400 ml-1">Card Payloads</label>
-                      <Textarea placeholder="4111...|12|25|123" value={stripeCc} onChange={(e) => setStripeCc(e.target.value)} className="min-h-[250px]" required />
+                      <Textarea placeholder="4111...|12|25|123" value={stripeCc} onChange={(e) => setStripeCc(e.target.value)} className="min-h-[250px]" required disabled />
                     </div>
                     <Button type="button" disabled className="w-full gap-2 mt-2 bg-neutral-900 border border-neutral-800 text-neutral-500">Processing Module Offline</Button>
                   </motion.form>
@@ -534,6 +605,26 @@ const CheckerTab = () => {
               </AnimatePresence>
             </div>
           </div>
+
+          {/* Live Log Area */}
+          {results.length > 0 && (
+            <div className="ios-glass-card rounded-3xl p-6">
+              <h3 className="text-sm font-medium text-white mb-4">Terminal Output</h3>
+              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 font-mono text-[11px] sm:text-xs">
+                {results.map((r, i) => (
+                  <div key={i} className={`p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${r.isApproved ? 'bg-green-500/10 border-green-500/20 text-green-400' : r.error ? 'bg-neutral-800/50 border-neutral-700/50 text-neutral-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
+                    <div className="flex items-center gap-2">
+                      <span className="opacity-50">[{r.time}]</span>
+                      <span className="font-semibold">{r.card}</span>
+                    </div>
+                    <div className="truncate max-w-[200px] sm:max-w-md opacity-80">
+                      {r.response?.result?.message || r.response?.message || JSON.stringify(r.response)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Dashboard Side Widget */}
@@ -547,15 +638,19 @@ const CheckerTab = () => {
           </div>
 
           <div className="ios-glass-card p-6 rounded-3xl">
-             <h3 className="font-medium text-neutral-300 mb-4 text-sm">Live Results</h3>
+             <h3 className="font-medium text-neutral-300 mb-4 text-sm">Session Results</h3>
              <div className="space-y-3">
                <div className="flex justify-between items-center bg-white/[0.02] px-3 py-2 rounded-xl border border-white/[0.05]">
                  <span className="text-xs text-neutral-400 font-medium flex items-center gap-1.5"><Check className="w-3 h-3 text-green-500"/> Approved</span>
-                 <span className="text-sm font-mono text-white font-semibold">0</span>
+                 <span className="text-sm font-mono text-white font-semibold">{stats.approved}</span>
                </div>
                <div className="flex justify-between items-center bg-white/[0.02] px-3 py-2 rounded-xl border border-white/[0.05]">
                  <span className="text-xs text-neutral-400 font-medium flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-red-500"></span> Declined</span>
-                 <span className="text-sm font-mono text-white font-semibold">0</span>
+                 <span className="text-sm font-mono text-white font-semibold">{stats.declined}</span>
+               </div>
+               <div className="flex justify-between items-center bg-white/[0.02] px-3 py-2 rounded-xl border border-white/[0.05]">
+                 <span className="text-xs text-neutral-400 font-medium flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-neutral-600"></span> Errors</span>
+                 <span className="text-sm font-mono text-white font-semibold">{stats.errors}</span>
                </div>
              </div>
           </div>
