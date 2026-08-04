@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-route
 import { Toaster, toast } from "sonner";
 import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
-import { Lock, User, Terminal, ChevronRight, LogOut, Search, Activity, ShieldAlert, Cpu, Plus, CreditCard, ShoppingBag, Code2, Play } from "lucide-react";
+import { Lock, User, Terminal, ChevronRight, LogOut, Search, Activity, ShieldAlert, Cpu, Plus, CreditCard, ShoppingBag, Code2, Play, ChevronLeft } from "lucide-react";
 
 axios.defaults.baseURL = process.env.REACT_APP_BACKEND_URL;
 axios.defaults.withCredentials = true;
@@ -129,7 +129,6 @@ const Login = () => {
       transition={{ duration: 0.4 }}
       className="min-h-screen flex items-center justify-center p-4 relative z-10"
     >
-      {/* Soft ambient glow behind the login box */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-white/[0.02] rounded-full blur-[100px] pointer-events-none"></div>
 
       <div className="w-full max-w-[420px] bg-[#09090b] border border-white/5 rounded-2xl p-8 shadow-2xl relative z-10">
@@ -328,7 +327,6 @@ const AdminDashboard = () => {
     <DashboardLayout title="Users & Access">
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         
-        {/* Create User Panel */}
         <div className="xl:col-span-1">
           <div className="bg-[#09090b] border border-white/5 rounded-2xl p-6 shadow-xl">
             <div className="flex items-center gap-3 mb-6">
@@ -355,7 +353,6 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        {/* Users List */}
         <div className="xl:col-span-2">
           <div className="bg-[#09090b] border border-white/5 rounded-2xl shadow-xl overflow-hidden flex flex-col h-full">
             <div className="px-6 py-5 border-b border-white/5 flex items-center justify-between">
@@ -427,24 +424,135 @@ const AdminDashboard = () => {
             </div>
           </div>
         </div>
+      </div>
+    </DashboardLayout>
+  );
+};
+
+const ProxyManager = ({ onBack }) => {
+  const [proxies, setProxies] = useState("");
+  const [savedProxies, setSavedProxies] = useState([]);
+  const [checking, setChecking] = useState(false);
+
+  const fetchSaved = async () => {
+    try {
+      const { data } = await axios.get("/api/proxies");
+      setSavedProxies(data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+  
+  useEffect(() => { fetchSaved(); }, []);
+
+  const handleCheck = async (e) => {
+    e.preventDefault();
+    if (!proxies.trim()) return;
+    setChecking(true);
+    try {
+      const { data } = await axios.post("/api/proxies/check", { proxies });
+      toast.success(`Check complete. ${data.successful} saved, ${data.failed} failed.`);
+      setProxies("");
+      fetchSaved();
+    } catch (e) {
+      toast.error("Failed to check proxies");
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    try {
+      await axios.delete(`/api/proxies/${id}`);
+      fetchSaved();
+    } catch (e) {}
+  };
+
+  return (
+    <DashboardLayout title="Proxy Nodes">
+      <Button variant="ghost" onClick={onBack} className="mb-2 -mt-4 pl-0 hover:bg-transparent" data-testid="back-to-gateways">
+        <ChevronLeft className="w-4 h-4 mr-1" />
+        Back to Checker Gateways
+      </Button>
+      
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+        <div className="bg-[#09090b] border border-white/5 p-6 rounded-2xl shadow-xl">
+          <h2 className="text-xl font-semibold text-white mb-2">Import Nodes</h2>
+          <p className="text-sm text-zinc-500 mb-6">Enter proxies (ip:port or ip:port:user:pass). We will test them against Stripe and Shopify APIs before saving.</p>
+          <form onSubmit={handleCheck}>
+            <Textarea 
+              value={proxies} 
+              onChange={e => setProxies(e.target.value)} 
+              placeholder="192.168.1.1:8080&#10;test:proxy" 
+              className="min-h-[250px] mb-4" 
+              data-testid="proxies-textarea"
+            />
+            <Button type="submit" disabled={checking} className="w-full" data-testid="check-proxies-btn">
+              {checking ? "Checking..." : "Check & Save Proxies"}
+            </Button>
+          </form>
+        </div>
         
+        <div className="bg-[#09090b] border border-white/5 rounded-2xl shadow-xl overflow-hidden flex flex-col h-[500px]">
+          <div className="px-6 py-5 border-b border-white/5 flex items-center justify-between">
+            <h3 className="font-medium text-white">Active Nodes</h3>
+            <span className="text-xs text-zinc-500 font-mono">{savedProxies.length} Saved</span>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-white/5 bg-white/[0.02]">
+                  <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Proxy Address</th>
+                  <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {savedProxies.map(p => (
+                  <tr key={p._id} className="border-b border-white/5 hover:bg-white/[0.02]">
+                    <td className="px-6 py-4 font-mono text-sm text-zinc-300">{p.raw}</td>
+                    <td className="px-6 py-4 text-right">
+                      <Button variant="danger" size="sm" onClick={() => handleDelete(p._id)}>Remove</Button>
+                    </td>
+                  </tr>
+                ))}
+                {savedProxies.length === 0 && (
+                  <tr>
+                    <td colSpan="2" className="px-6 py-12 text-center text-zinc-500 text-sm">No proxy nodes saved yet.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </DashboardLayout>
   );
 };
 
 const UserDashboard = () => {
+  const [view, setView] = useState("gateways"); // 'gateways' | 'proxies'
   const [activeGateway, setActiveGateway] = useState("stripe");
+  const [proxyCount, setProxyCount] = useState(0);
 
-  // Gateway form states
   const [stripeSk, setStripeSk] = useState("");
   const [stripeCc, setStripeCc] = useState("");
-  
   const [shopifyUrls, setShopifyUrls] = useState("");
   const [shopifyCc, setShopifyCc] = useState("");
 
+  useEffect(() => {
+    axios.get("/api/proxies").then(res => setProxyCount(res.data.length)).catch(() => {});
+  }, [view]);
+
+  if (view === "proxies") {
+    return <ProxyManager onBack={() => setView("gateways")} />;
+  }
+
   const handleStartChecker = (e) => {
     e.preventDefault();
+    if (proxyCount === 0) {
+      toast.error("Please add and configure at least one proxy node before starting.");
+      return;
+    }
     toast.info("Checker engine is currently initializing. Please stand by.");
   };
 
@@ -479,7 +587,6 @@ const UserDashboard = () => {
         
         {/* Main Checker Interface */}
         <div className="xl:col-span-2">
-          
           <AnimatePresence mode="wait">
             
             {activeGateway === 'stripe' && (
@@ -608,7 +715,7 @@ const UserDashboard = () => {
                 <div className="h-px w-full bg-white/5"></div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-zinc-500">Proxy Nodes</span>
-                  <span className="text-sm text-zinc-400 font-medium">0 / 0 Active</span>
+                  <span className={`text-sm font-medium ${proxyCount > 0 ? 'text-white' : 'text-zinc-400'}`}>{proxyCount} Active</span>
                 </div>
                 <div className="h-px w-full bg-white/5"></div>
                 <div className="flex justify-between items-center">
@@ -627,7 +734,9 @@ const UserDashboard = () => {
             </div>
             <h3 className="font-medium text-zinc-300 mb-2 relative z-10">Dedicated Proxies</h3>
             <p className="text-zinc-600 text-sm leading-relaxed relative z-10"><span className="text-[10px] font-semibold uppercase text-zinc-400 mr-2 bg-white/5 px-2 py-0.5 rounded">Setup</span> Configure proxies before starting the checker to avoid rate limits.</p>
-            <Button variant="outline" size="sm" className="w-full mt-4 mt-4 relative z-10" onClick={() => toast("Proxy management opening...")}>Manage Nodes</Button>
+            <Button variant="outline" size="sm" className="w-full mt-4 relative z-10" onClick={() => setView("proxies")} data-testid="manage-nodes-btn">
+              Manage Nodes
+            </Button>
           </div>
         </div>
 

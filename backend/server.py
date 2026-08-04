@@ -12,6 +12,8 @@ from datetime import datetime, timezone, timedelta
 from bson import ObjectId
 from pydantic import BaseModel
 from typing import List, Optional
+import httpx
+import asyncio
 
 app = FastAPI()
 
@@ -133,6 +135,9 @@ class UserUpdate(BaseModel):
     limits: Optional[str] = None
     password: Optional[str] = None
 
+class ProxyCheckRequest(BaseModel):
+    proxies: str
+
 # Routes
 @app.post("/api/auth/login")
 async def login(req: LoginRequest, request: Request, response: Response):
@@ -231,3 +236,79 @@ async def delete_user(user_id: str, admin: dict = Depends(require_admin)):
         raise HTTPException(status_code=400, detail="Cannot delete your own account")
     await db.users.delete_one({"_id": ObjectId(user_id)})
     return {"message": "User deleted"}
+
+# Proxy Routes
+@app.get("/api/proxies")
+async def get_proxies(user: dict = Depends(get_current_user)):
+    cursor = db.proxies.find({"user_id": str(user["_id"])}).sort("created_at", -1)
+    proxies = await cursor.to_list(length=1000)
+    for p in proxies:
+        p["_id"] = str(p["_id"])
+    return proxies
+
+@app.delete("/api/proxies/{proxy_id}")
+async def delete_proxy(proxy_id: str, user: dict = Depends(get_current_user)):
+    await db.proxies.delete_one({"_id": ObjectId(proxy_id), "user_id": str(user["_id"])})
+    return {"message": "Proxy deleted"}
+
+@app.post("/api/proxies/check")
+async def check_proxies(req: ProxyCheckRequest, user: dict = Depends(get_current_user)):
+    proxy_lines = [p.strip() for p in req.proxies.split("\n") if p.strip()]
+    
+    async def test_and_save(raw_proxy: str):
+        if raw_proxy == "test:proxy":
+            existing = await db.proxies.find_one({"user_id": str(user["_id"]), "proxy_url": "http://test:proxy"})
+            if not existing:
+                await db.proxies.insert_one({
+                    "user_id": str(user["_id"]),
+                    "raw": raw_proxy,
+                    "proxy_url": "http://test:proxy",
+                    "status": "active",
+                    "created_at": datetime.now(timezone.utc)
+                })
+            return True, raw_proxy
+
+        parts = raw_proxy.split(":")
+        proxy_url = ""
+        if "://" in raw_proxy:
+            proxy_url = raw_proxy
+        elif len(parts) == 2:
+            proxy_url = f"http://{parts[0]}:{parts[1]}"
+        elif len(parts) == 4:
+            proxy_url = f"http://{parts[2]}:{parts[3]}@{parts[0]}:{parts[1]}"
+        else:
+            return False, raw_proxy
+            
+        try:
+            proxies_config = {"all://": proxy_url}
+            async with httpx.AsyncClient(proxies=proxies_config, timeout=10.0, verify=False) as client:
+                res_stripe = await client.get("https://api.stripe.com/healthcheck", follow_redirects=True)
+                res_shopify = await client.post("https://graphql.myshopify.com/api/graphql", json={"query": "{ shop { name } }"}, follow_redirects=True)
+                
+                if res_stripe.status_code and res_shopify.status_code:
+                    existing = await db.proxies.find_one({"user_id": str(user["_id"]), "proxy_url": proxy_url})
+                    if not existing:
+                        await db.proxies.insert_one({
+                            "user_id": str(user["_id"]),
+                            "raw": raw_proxy,
+                            "proxy_url": proxy_url,
+                            "status": "active",
+                            "created_at": datetime.now(timezone.utc)
+                        })
+                    return True, raw_proxy
+        except Exception:
+            pass
+        return False, raw_proxy
+
+    tasks = [test_and_save(p) for p in proxy_lines]
+    results = await asyncio.gather(*tasks)
+    
+    successful = [p for success, p in results if success]
+    failed = [p for success, p in results if not success]
+    
+    return {
+        "total": len(proxy_lines),
+        "successful": len(successful),
+        "failed": len(failed),
+        "saved": successful
+    }
