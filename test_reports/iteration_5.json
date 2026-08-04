@@ -1,0 +1,34 @@
+{
+  "summary": "Backend is completely down due to a critical IndentationError in /app/backend/server.py at line 400-401. The `elif req.gateway == \"shopify\":` block has no body, and Shopify Tools imports/routes were injected at module scope inside a function body. Uvicorn cannot load the app; all /api/* calls return 502 Bad Gateway from the ingress. Frontend UI testing (regex parsing, BIN lookup, Shopify Tools UI, Stripe response formatting) cannot proceed until the backend starts. No frontend Playwright tests were executed because the backend is unreachable.",
+  "tested_scope": ["backend"],
+  "passed": [],
+  "failed": [
+    {
+      "area": "backend/startup",
+      "issue": "IndentationError: expected an indented block after 'elif' statement on line 400 of /app/backend/server.py. Shopify Tools code (from bs4 import BeautifulSoup, import httpx, @app.get('/api/shopify_tools/stores') ...) was placed inside the checker gateway elif branch instead of at module level.",
+      "evidence": "supervisor backend.err.log:\n  File \"/app/backend/server.py\", line 401\n    from bs4 import BeautifulSoup\nIndentationError: expected an indented block after 'elif' statement on line 400\ncurl POST /api/auth/login -> 502 Bad gateway (Cloudflare)",
+      "priority": "HIGH"
+    },
+    {
+      "area": "backend/checker",
+      "issue": "Shopify gateway branch in /api/checker/run has no implementation body (empty elif). Even after fixing the indentation, Shopify checker path will not function.",
+      "evidence": "server.py lines 400-403 show empty elif immediately followed by module-level import statements.",
+      "priority": "HIGH"
+    },
+    {
+      "area": "backend/shopify_tools",
+      "issue": "Route /api/shopify_tools/stores is defined inside the checker function scope, so it will never be registered on the FastAPI app even after the syntax fix.",
+      "evidence": "server.py lines 404-405 defined nested under checker function due to indentation issue.",
+      "priority": "HIGH"
+    }
+  ],
+  "action_items": [
+    "Move `from bs4 import BeautifulSoup` and `import httpx` to the top of /app/backend/server.py (with other imports).",
+    "Move the `@app.get('/api/shopify_tools/stores')` route (and any related Shopify Tools routes) OUT of the checker function and place them at module top-level.",
+    "Provide an actual body for the `elif req.gateway == 'shopify':` branch in /api/checker/run (or remove the elif) so the checker function is syntactically valid.",
+    "After the fix, verify backend starts cleanly via supervisor and /api/auth/login returns 200. Then re-run the BIN lookup + regex parsing + Shopify Tools UI tests."
+  ],
+  "success_rate": {"backend": "0%", "frontend": "not tested"},
+  "retest_needed": true,
+  "full_testing_deferred": true
+}

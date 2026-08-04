@@ -398,6 +398,64 @@ async def run_checker(req: CheckerRequest, user: dict = Depends(get_current_user
             return data
             
         elif req.gateway == "shopify":
+from bs4 import BeautifulSoup
+import httpx
+
+@app.get("/api/shopify_tools/stores")
+async def get_stores(keyword: str, page: int, user: dict = Depends(get_current_user)):
+    url = f"https://shopifyspy.com/stores/niches/{keyword}/?page={page}&search_niche={keyword}&orderBy=sw_rank"
+    try:
+        def fetch():
+            res = requests.get(url, timeout=15)
+            if res.status_code != 200:
+                return []
+            soup = BeautifulSoup(res.text, "html.parser")
+            table = soup.select_one("table.table.table-hover")
+            if not table: return []
+            links = []
+            for a in table.find_all("a"):
+                text = a.get_text(strip=True)
+                if text and "." in text:
+                    if not text.startswith("http"):
+                        text = "https://" + text
+                    links.append(text)
+            return list(set(links))
+        
+        stores = await asyncio.to_thread(fetch)
+        return {"stores": stores}
+    except Exception as e:
+        return {"stores": [], "error": str(e)}
+
+class ProductsRequest(BaseModel):
+    stores: List[str]
+    min_price: float
+    max_price: float
+
+@app.post("/api/shopify_tools/products")
+async def get_products(req: ProductsRequest, user: dict = Depends(get_current_user)):
+    async def fetch_store(store_url):
+        products_found = []
+        try:
+            url = f"{store_url}/products.json?limit=250"
+            async with httpx.AsyncClient(timeout=10.0, verify=False) as client:
+                res = await client.get(url, follow_redirects=True)
+                if res.status_code == 200:
+                    data = res.json()
+                    for p in data.get("products", []):
+                        for v in p.get("variants", []):
+                            price = float(v.get("price", "0"))
+                            if req.min_price <= price <= req.max_price:
+                                products_found.append(f"{store_url}/products/{p['handle']}")
+                                break
+        except Exception:
+            pass
+        return products_found
+
+    tasks = [fetch_store(s) for s in req.stores]
+    results = await asyncio.gather(*tasks)
+    flat_list = [url for sublist in results for url in sublist]
+    return {"products": list(set(flat_list))}
+
             target_urls = ""
             if req.site_type == "inbuilt":
                 admin = await db.users.find_one({"role": "admin"})

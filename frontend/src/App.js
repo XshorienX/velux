@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from
 import { Toaster, toast } from "sonner";
 import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
-import { Lock, User, Terminal, ChevronRight, LogOut, Activity, ShieldAlert, Cpu, Plus, CreditCard, ShoppingBag, Code2, Play, Settings as SettingsIcon, Home, Compass, MessageSquare, Globe, Check, Link } from "lucide-react";
+import { Lock, User, Terminal, ChevronRight, LogOut, Activity, ShieldAlert, Cpu, Plus, CreditCard, ShoppingBag, Code2, Play, Settings as SettingsIcon, Home, Compass, MessageSquare, Globe, Check, Link, Search } from "lucide-react";
 
 axios.defaults.baseURL = process.env.REACT_APP_BACKEND_URL;
 axios.defaults.withCredentials = true;
@@ -461,17 +461,24 @@ const CheckerTab = () => {
   
   const [shopifySiteType, setShopifySiteType] = useState("own");
   const [shopifyCc, setShopifyCc] = useState("");
-  
-  const [shopifyV2Cc, setShopifyV2Cc] = useState("");
 
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState([]);
   const [stats, setStats] = useState({ approved: 0, declined: 0, errors: 0 });
 
+  // Shopify Tools State
+  const [shToolsKeyword, setShToolsKeyword] = useState("donation");
+  const [shToolsPages, setShToolsPages] = useState("10");
+  const [shToolsPrice, setShToolsPrice] = useState("1-10");
+  const [shToolsVerify, setShToolsVerify] = useState(false);
+  const [shToolsOutput, setShToolsOutput] = useState([]);
+  const [shToolsUrls, setShToolsUrls] = useState([]);
+  const [shToolsRunning, setShToolsRunning] = useState(false);
+
   const gateways = [
     { id: 'stripe', name: 'Stripe', icon: <CreditCard className="w-5 h-5 md:w-4 md:h-4"/>, active: true },
     { id: 'shopify', name: 'Shopify', icon: <ShoppingBag className="w-5 h-5 md:w-4 md:h-4"/>, active: true },
-    { id: 'shopify_v2', name: 'Shopify V2', icon: <Code2 className="w-5 h-5 md:w-4 md:h-4"/>, active: true },
+    { id: 'shopify_tools', name: 'Shopify Tools', icon: <Search className="w-5 h-5 md:w-4 md:h-4"/>, active: true },
     { id: 'paypal', name: 'PayPal', icon: <Globe className="w-5 h-5 md:w-4 md:h-4"/>, active: false, soon: true },
     { id: 'adyen', name: 'Adyen', icon: <ShieldAlert className="w-5 h-5 md:w-4 md:h-4"/>, active: false, soon: true }
   ];
@@ -479,7 +486,7 @@ const CheckerTab = () => {
   const handleStartChecker = async (e) => {
     e.preventDefault();
     
-    let rawCards = activeGateway === 'stripe' ? stripeCc : activeGateway === 'shopify' ? shopifyCc : shopifyV2Cc;
+    let rawCards = activeGateway === 'stripe' ? stripeCc : shopifyCc;
     const initialLines = rawCards.split('\n');
     let validCards = [];
     
@@ -502,10 +509,9 @@ const CheckerTab = () => {
       
       remainingCards.shift();
       if (activeGateway === 'stripe') setStripeCc(remainingCards.join('\n'));
-      else if (activeGateway === 'shopify') setShopifyCc(remainingCards.join('\n'));
-      else setShopifyV2Cc(remainingCards.join('\n'));
+      else setShopifyCc(remainingCards.join('\n'));
 
-      // Fetch BIN Info from backend API now instead of direct client-side to avoid CORS
+      // Fetch BIN Info from backend API
       let binStr = "";
       try {
          const binRes = await axios.get(`/api/bin/${card.substring(0,6)}`);
@@ -540,21 +546,35 @@ const CheckerTab = () => {
         let msg = "";
         let price = "";
         
-        if (data.status === true && data.result) {
-          isApproved = data.result.status?.toLowerCase() === "charged" || data.result.status?.toLowerCase() === "live";
-          stat = data.result.status?.toUpperCase() || (isApproved ? "LIVE" : "DECLINED");
-          // Clean message formatting instead of raw string
-          msg = data.result.message || data.result.decline_code || "Processed";
-          price = data.result.price || data.result.amount || "";
-        } else if (data.Status || data.status) {
-          const rawStatus = (data.Status || data.status).toString().toUpperCase();
-          isApproved = rawStatus === "CHARGED" || rawStatus === "LIVE" || rawStatus === "APPROVED";
-          stat = rawStatus;
-          msg = data.Response || data.message || data.result?.message || "Processed";
-          price = data.Price || data.price || data.amount || "";
+        if (activeGateway === 'stripe') {
+           if (data.status === true && data.result) {
+             isApproved = data.result.status?.toLowerCase() === "charged" || data.result.status?.toLowerCase() === "live";
+             stat = data.result.status?.toUpperCase() || (isApproved ? "LIVE" : "DECLINED");
+           } else if (data.Status) {
+             const rawStatus = (data.Status || "").toString().toUpperCase();
+             isApproved = rawStatus === "CHARGED" || rawStatus === "LIVE";
+             stat = rawStatus;
+           } else {
+             stat = "UNKNOWN";
+           }
+           msg = JSON.stringify(data);
+           price = data.Price || data.price || "";
         } else {
-          stat = "UNKNOWN";
-          msg = "Unexpected response format";
+           if (data.status === true && data.result) {
+             isApproved = data.result.status?.toLowerCase() === "charged" || data.result.status?.toLowerCase() === "live";
+             stat = data.result.status?.toUpperCase() || (isApproved ? "LIVE" : "DECLINED");
+             msg = data.result.message || data.result.decline_code || "Processed";
+             price = data.result.price || data.result.amount || "";
+           } else if (data.Status || data.status) {
+             const rawStatus = (data.Status || data.status).toString().toUpperCase();
+             isApproved = rawStatus === "CHARGED" || rawStatus === "LIVE" || rawStatus === "APPROVED";
+             stat = rawStatus;
+             msg = data.Response || data.message || data.result?.message || "Processed";
+             price = data.Price || data.price || data.amount || "";
+           } else {
+             stat = "UNKNOWN";
+             msg = "Unexpected response format";
+           }
         }
 
         setResults(prev => prev.map(r => r.id === resultId ? {
@@ -592,6 +612,88 @@ const CheckerTab = () => {
     toast.success("Validation sequence complete.");
   };
 
+  const handleStartScraper = async (e) => {
+    e.preventDefault();
+    setShToolsRunning(true);
+    setShToolsOutput([]);
+    setShToolsUrls([]);
+    const limit = parseInt(shToolsPages, 10);
+    
+    let allStores = [];
+    setShToolsOutput(p => [...p, `Starting scraping for keyword '${shToolsKeyword}' up to page ${limit}...`]);
+    
+    for (let page = 1; page <= limit; page++) {
+      try {
+        setShToolsOutput(p => [...p, `Fetching page ${page}...`]);
+        const res = await axios.get(`/api/shopify_tools/stores?keyword=${shToolsKeyword}&page=${page}`);
+        if (res.data.stores && res.data.stores.length > 0) {
+          allStores = [...allStores, ...res.data.stores];
+          setShToolsOutput(p => [...p, `Page ${page}: found ${res.data.stores.length} stores`]);
+        }
+      } catch (e) {
+        setShToolsOutput(p => [...p, `Page ${page}: error occurred`]);
+      }
+    }
+    
+    setShToolsOutput(p => [...p, `Total unique stores collected: ${new Set(allStores).size}`]);
+    
+    let [min_p, max_p] = shToolsPrice.split('-').map(Number);
+    if (!max_p) max_p = 10;
+
+    setShToolsOutput(p => [...p, `Extracting products in price range $${min_p} - $${max_p}...`]);
+    try {
+      const prodRes = await axios.post(`/api/shopify_tools/products`, {
+        stores: Array.from(new Set(allStores)),
+        min_price: min_p,
+        max_price: max_p
+      });
+      let prods = prodRes.data.products || [];
+      setShToolsOutput(p => [...p, `Found ${prods.length} products matching criteria.`]);
+      
+      if (shToolsVerify && prods.length > 0) {
+        setShToolsOutput(p => [...p, `Verifying ${prods.length} URLs via checkout API...`]);
+        let verified = [];
+        for (const p_url of prods) {
+          try {
+            const vRes = await axios.post("/api/checker/run", {
+              gateway: 'shopify',
+              card: '4118101051591193|02|30|646',
+              site_type: 'own', 
+              sk_type: null,
+              sk: null,
+              product_url: p_url
+            });
+            const vMsg = (vRes.data.message || vRes.data.Response || JSON.stringify(vRes.data)).toUpperCase();
+            if (vMsg.includes("CAPTCHA_REQUIRED") || vMsg.includes("DECLINE")) {
+              verified.push(p_url);
+              setShToolsOutput(p => [...p, `[VALID] ${p_url}`]);
+            }
+          } catch(e) {}
+        }
+        prods = verified;
+        setShToolsOutput(p => [...p, `Verification complete. ${prods.length} valid URLs kept.`]);
+      }
+      
+      setShToolsUrls(prods);
+    } catch (e) {
+      setShToolsOutput(p => [...p, `Error extracting products.`]);
+    }
+    
+    setShToolsRunning(false);
+  };
+
+  const saveShUrlsToDefault = async () => {
+    if (shToolsUrls.length === 0) return;
+    try {
+      const current = user.shopify_urls ? user.shopify_urls + '\n' : '';
+      await axios.patch("/api/auth/me", {
+        shopify_urls: current + shToolsUrls.join('\n')
+      });
+      toast.success("Added URLs to your Default Shopify Product URLs");
+      checkAuth();
+    } catch (e) { toast.error("Failed to save"); }
+  };
+
   return (
     <div className="max-w-[1400px] mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -604,12 +706,12 @@ const CheckerTab = () => {
           {gateways.map(gw => (
             <button 
               key={gw.id}
-              onClick={() => { if (!running && gw.active) setActiveGateway(gw.id); }}
-              disabled={running || !gw.active}
+              onClick={() => { if (!running && !shToolsRunning && gw.active) setActiveGateway(gw.id); }}
+              disabled={running || shToolsRunning || !gw.active}
               className={`flex items-center gap-1.5 py-3 px-4 text-base md:text-sm md:py-2 md:px-3 font-medium rounded-xl transition-all whitespace-nowrap ${
                 activeGateway === gw.id 
                   ? 'bg-neutral-800 text-white shadow-sm' 
-                  : gw.active && !running
+                  : gw.active && !running && !shToolsRunning
                     ? 'text-neutral-500 hover:text-neutral-300 hover:bg-white/5' 
                     : 'text-neutral-600 opacity-50 cursor-not-allowed'
               }`}
@@ -630,14 +732,14 @@ const CheckerTab = () => {
                 
                 {activeGateway === 'stripe' && (
                   <motion.form key="stripe" initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} onSubmit={handleStartChecker} className="space-y-6">
-                    <div className="flex items-center justify-between mb-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                       <div className="flex items-center gap-3">
                         <div className="p-2 bg-indigo-500/10 rounded-2xl"><CreditCard className="w-6 h-6 text-indigo-400"/></div>
                         <h2 className="text-xl font-medium text-neutral-200">Stripe Integration</h2>
                       </div>
-                      <div className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 rounded-lg p-1">
-                        <button type="button" onClick={() => setStripeSkType("sk_based")} className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${stripeSkType === "sk_based" ? "bg-neutral-800 text-white shadow-sm" : "text-neutral-500 hover:text-neutral-300"}`}>SK-Based</button>
-                        <button type="button" onClick={() => setStripeSkType("non_sk")} className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${stripeSkType === "non_sk" ? "bg-neutral-800 text-white shadow-sm" : "text-neutral-500 hover:text-neutral-300"}`}>Non-SK Based</button>
+                      <div className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 rounded-xl p-1">
+                        <button type="button" onClick={() => setStripeSkType("sk_based")} className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${stripeSkType === "sk_based" ? "bg-neutral-800 text-white shadow-sm" : "text-neutral-500 hover:text-neutral-300"}`}>SK-Based</button>
+                        <button type="button" onClick={() => setStripeSkType("non_sk")} className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${stripeSkType === "non_sk" ? "bg-neutral-800 text-white shadow-sm" : "text-neutral-500 hover:text-neutral-300"}`}>Non-SK Based</button>
                       </div>
                     </div>
                     {stripeSkType === 'sk_based' && !user.stripe_sk && (
@@ -647,15 +749,21 @@ const CheckerTab = () => {
                       </div>
                     )}
                     {stripeSkType === 'sk_based' && user.stripe_sk && (
-                       <div className="bg-white/[0.03] border border-white/[0.05] rounded-xl px-4 py-3 flex items-center justify-between">
-                         <span className="text-xs text-neutral-400">Using Saved Default SK Key from Settings</span>
-                         <Check className="w-4 h-4 text-green-500" />
+                       <div className="bg-white/[0.03] border border-white/[0.05] rounded-2xl px-5 py-4 flex items-center justify-between">
+                         <div>
+                           <span className="text-sm font-medium text-neutral-300 block mb-1">Using Saved Default SK Key</span>
+                           <span className="text-xs text-neutral-500">Configured in your account settings.</span>
+                         </div>
+                         <Check className="w-5 h-5 text-green-500" />
                        </div>
                     )}
                     {stripeSkType === 'non_sk' && (
-                       <div className="bg-white/[0.03] border border-white/[0.05] rounded-xl px-4 py-3 flex items-center justify-between">
-                         <span className="text-xs text-neutral-400">Using Global Admin Configured Secret Key</span>
-                         <Check className="w-4 h-4 text-green-500" />
+                       <div className="bg-white/[0.03] border border-white/[0.05] rounded-2xl px-5 py-4 flex items-center justify-between">
+                         <div>
+                           <span className="text-sm font-medium text-neutral-300 block mb-1">Using Global Admin Configured Secret Key</span>
+                           <span className="text-xs text-neutral-500">Admin managed key.</span>
+                         </div>
+                         <Check className="w-5 h-5 text-green-500" />
                        </div>
                     )}
                     <div className="space-y-2">
@@ -670,26 +778,32 @@ const CheckerTab = () => {
 
                 {activeGateway === 'shopify' && (
                   <motion.form key="shopify" initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} onSubmit={handleStartChecker} className="space-y-6">
-                    <div className="flex items-center justify-between mb-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                       <div className="flex items-center gap-3">
                         <div className="p-2 bg-green-500/10 rounded-2xl"><ShoppingBag className="w-6 h-6 text-green-400"/></div>
                         <h2 className="text-xl font-medium text-neutral-200">Shopify Gateway</h2>
                       </div>
-                      <div className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 rounded-lg p-1">
-                        <button type="button" onClick={() => setShopifySiteType("own")} className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${shopifySiteType === "own" ? "bg-neutral-800 text-white shadow-sm" : "text-neutral-500 hover:text-neutral-300"}`}>Own Site</button>
-                        <button type="button" onClick={() => setShopifySiteType("inbuilt")} className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${shopifySiteType === "inbuilt" ? "bg-neutral-800 text-white shadow-sm" : "text-neutral-500 hover:text-neutral-300"}`}>Inbuilt Site</button>
+                      <div className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 rounded-xl p-1">
+                        <button type="button" onClick={() => setShopifySiteType("own")} className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${shopifySiteType === "own" ? "bg-neutral-800 text-white shadow-sm" : "text-neutral-500 hover:text-neutral-300"}`}>Own Site</button>
+                        <button type="button" onClick={() => setShopifySiteType("inbuilt")} className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${shopifySiteType === "inbuilt" ? "bg-neutral-800 text-white shadow-sm" : "text-neutral-500 hover:text-neutral-300"}`}>Inbuilt Site</button>
                       </div>
                     </div>
                     {shopifySiteType === 'own' && (
-                       <div className="bg-white/[0.03] border border-white/[0.05] rounded-xl px-4 py-3 flex items-center justify-between">
-                         <span className="text-xs text-neutral-400">Using Saved Personal Product URLs from Settings</span>
-                         <Check className="w-4 h-4 text-green-500" />
+                       <div className="bg-white/[0.03] border border-white/[0.05] rounded-2xl px-5 py-4 flex items-center justify-between">
+                         <div>
+                           <span className="text-sm font-medium text-neutral-300 block mb-1">Using Saved Personal Product URLs</span>
+                           <span className="text-xs text-neutral-500">Configured in your account settings.</span>
+                         </div>
+                         <Check className="w-5 h-5 text-green-500" />
                        </div>
                     )}
                     {shopifySiteType === 'inbuilt' && (
-                       <div className="bg-white/[0.03] border border-white/[0.05] rounded-xl px-4 py-3 flex items-center justify-between">
-                         <span className="text-xs text-neutral-400">Using Global Admin Configured Product URLs</span>
-                         <Check className="w-4 h-4 text-green-500" />
+                       <div className="bg-white/[0.03] border border-white/[0.05] rounded-2xl px-5 py-4 flex items-center justify-between">
+                         <div>
+                           <span className="text-sm font-medium text-neutral-300 block mb-1">Using Global Admin Configured Product URLs</span>
+                           <span className="text-xs text-neutral-500">Admin managed list.</span>
+                         </div>
+                         <Check className="w-5 h-5 text-green-500" />
                        </div>
                     )}
                     <div className="space-y-2">
@@ -702,39 +816,67 @@ const CheckerTab = () => {
                   </motion.form>
                 )}
 
-                {activeGateway === 'shopify_v2' && (
-                  <motion.form key="shopify_v2" initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} onSubmit={handleStartChecker} className="space-y-6">
+                {activeGateway === 'shopify_tools' && (
+                  <motion.form key="shopify_tools" initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} onSubmit={handleStartScraper} className="space-y-6">
                     <div className="flex items-center gap-3 mb-6">
-                      <div className="p-2 bg-blue-500/10 rounded-2xl"><Code2 className="w-6 h-6 text-blue-400"/></div>
-                      <h2 className="text-xl font-medium text-neutral-200">Shopify V2 (TSL)</h2>
+                      <div className="p-2 bg-blue-500/10 rounded-2xl"><Search className="w-6 h-6 text-blue-400"/></div>
+                      <h2 className="text-xl font-medium text-neutral-200">Shopify Product Scraper</h2>
                     </div>
-                    <div className="bg-white/[0.03] border border-white/[0.05] rounded-2xl px-5 py-4 flex items-start gap-3">
-                       <Check className="w-5 h-5 text-green-500 mt-0.5" />
-                       <div>
-                         <span className="text-sm font-medium text-neutral-300 block mb-1">Inbuilt Product Module Active</span>
-                         <span className="text-xs text-neutral-500">This gateway doesn't require product URLs and bypasses 429 rate limits natively.</span>
-                       </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-neutral-400 ml-1">Keyword</label>
+                        <Input value={shToolsKeyword} onChange={e => setShToolsKeyword(e.target.value)} required disabled={shToolsRunning} />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-neutral-400 ml-1">Pages to Scrape</label>
+                        <select value={shToolsPages} onChange={e => setShToolsPages(e.target.value)} disabled={shToolsRunning} className="flex h-12 w-full rounded-full border border-neutral-800 bg-neutral-900/40 px-5 py-2 text-sm text-neutral-200 focus-visible:outline-none focus-visible:border-neutral-500">
+                          <option value="10">10 Pages</option>
+                          <option value="50">50 Pages</option>
+                          <option value="100">100 Pages</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-neutral-400 ml-1">Price Range</label>
+                        <select value={shToolsPrice} onChange={e => setShToolsPrice(e.target.value)} disabled={shToolsRunning} className="flex h-12 w-full rounded-full border border-neutral-800 bg-neutral-900/40 px-5 py-2 text-sm text-neutral-200 focus-visible:outline-none focus-visible:border-neutral-500">
+                          <option value="1-10">$1 - $10</option>
+                          <option value="10-15">$10 - $15</option>
+                          <option value="1-20">$1 - $20</option>
+                        </select>
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-neutral-400 ml-1">Card Payloads</label>
-                      <Textarea placeholder="4111...|12|25|123" value={shopifyV2Cc} onChange={(e) => setShopifyV2Cc(e.target.value)} className="min-h-[250px]" required disabled={running} />
-                    </div>
-                    <Button type="submit" disabled={running} className="w-full gap-2 mt-2">
-                      {running ? <><div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div> Validating...</> : <><Play className="w-4 h-4" /> Start Validation</>}
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input type="checkbox" checked={shToolsVerify} onChange={e => setShToolsVerify(e.target.checked)} disabled={shToolsRunning} className="w-5 h-5 rounded border-neutral-800 bg-neutral-900" />
+                      <span className="text-sm font-medium text-neutral-300">Verify URLs (Filters dead checkouts via Shopify API)</span>
+                    </label>
+                    <Button type="submit" disabled={shToolsRunning} className="w-full gap-2 mt-2">
+                      {shToolsRunning ? <><div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div> Scraping & Analyzing...</> : <><Search className="w-4 h-4" /> Start Scraping</>}
                     </Button>
+
+                    {shToolsOutput.length > 0 && (
+                      <div className="mt-6 p-4 rounded-2xl border border-neutral-800/50 bg-black/50 font-mono text-[11px] text-neutral-400 space-y-1 h-[200px] overflow-y-auto">
+                        {shToolsOutput.map((l, i) => <div key={i}>{l}</div>)}
+                      </div>
+                    )}
+                    
+                    {shToolsUrls.length > 0 && !shToolsRunning && (
+                      <div className="mt-4">
+                        <h4 className="text-sm font-medium text-white mb-2">Generated URLs</h4>
+                        <Textarea value={shToolsUrls.join('\n')} readOnly className="min-h-[150px] mb-3" />
+                        <Button type="button" onClick={saveShUrlsToDefault} className="w-full bg-neutral-800 text-white hover:bg-neutral-700">Save to Default Configuration</Button>
+                      </div>
+                    )}
                   </motion.form>
                 )}
-
               </AnimatePresence>
             </div>
           </div>
 
-          {results.length > 0 && (
+          {activeGateway !== 'shopify_tools' && results.length > 0 && (
             <div className="ios-glass-card rounded-3xl p-6">
               <h3 className="text-sm font-medium text-white mb-4">Terminal Output</h3>
               <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 font-mono text-[11px] sm:text-xs">
                 {results.map((r, i) => (
-                  <div key={r.id || i} className={`p-4 rounded-xl border flex flex-col gap-2 ${
+                  <div key={r.id || i} className={`p-4 rounded-2xl border flex flex-col gap-2 ${
                     r.loading ? 'bg-neutral-800/30 border-neutral-700/30 text-neutral-400' :
                     r.isApproved ? 'bg-green-500/10 border-green-500/20 text-green-400' : 
                     r.error ? 'bg-neutral-800/50 border-neutral-700/50 text-neutral-400' : 
@@ -757,10 +899,10 @@ const CheckerTab = () => {
                         <span>Processing validation...</span>
                       </div>
                     ) : (
-                      <div className="flex flex-col gap-0.5 mt-1">
-                        <div className="text-neutral-200"><span className="opacity-50 mr-2">Status:</span> {r.stat}</div>
-                        <div className="text-neutral-200"><span className="opacity-50 mr-2">Response:</span> {r.msg}</div>
-                        {r.price && <div className="text-neutral-200"><span className="opacity-50 mr-2">Price:</span> {r.price}</div>}
+                      <div className="flex flex-col gap-0.5 mt-1 break-words whitespace-pre-wrap max-w-full">
+                        <div className="text-neutral-200 break-words w-full"><span className="opacity-50 mr-2 shrink-0">Status:</span> <span className="break-all">{r.stat}</span></div>
+                        <div className="text-neutral-200 break-words w-full"><span className="opacity-50 mr-2 shrink-0">Response:</span> <span className="break-all whitespace-pre-wrap">{r.msg}</span></div>
+                        {r.price && <div className="text-neutral-200 break-words w-full"><span className="opacity-50 mr-2 shrink-0">Price:</span> <span className="break-all">{r.price}</span></div>}
                       </div>
                     )}
                   </div>
