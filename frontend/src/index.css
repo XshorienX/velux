@@ -41,7 +41,10 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground antialiased font-sans selection:bg-white selection:text-black;
+    @apply text-foreground antialiased font-sans selection:bg-zinc-800 selection:text-white;
+    background: radial-gradient(circle at 50% -20%, #1c1c1c 0%, #000000 70%);
+    background-attachment: fixed;
+    min-height: 100vh;
     font-family: 'IBM Plex Sans', sans-serif;
   }
   h1, h2, h3, h4, h5, h6 {
@@ -58,16 +61,25 @@
   height: 100vh;
   pointer-events: none;
   z-index: 50;
-  opacity: 0.03;
+  opacity: 0.04;
   background-image: url('https://images.unsplash.com/photo-1585314062340-f1a5a7c9328d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA3MDB8MHwxfHNlYXJjaHwyfHxibGFjayUyMGFic3RyYWN0JTIwdGV4dHVyZXxlbnwwfHx8fDE3ODU4Nzc1NzZ8MA&ixlib=rb-4.1.0&q=85');
   background-size: cover;
   background-position: center;
   mix-blend-mode: screen;
 }
 
-/* Glass Panel Styling */
+/* Glass Panel Styling with Shades of Black Grading */
 .glass-panel {
-  @apply bg-black/60 backdrop-blur-2xl border border-white/10;
+  @apply bg-gradient-to-br from-[#1c1c1c]/70 via-[#0a0a0a]/80 to-[#000000]/95 backdrop-blur-2xl border border-zinc-800/60 shadow-[0_15px_50px_rgba(0,0,0,0.9)];
+  position: relative;
+}
+.glass-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  border-left: 1px solid rgba(255,255,255,0.02);
 }
 
 /* Hide scrollbar but allow scroll */
@@ -79,9 +91,9 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #333;
+  background: #222;
   border-radius: 0px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: #444;
 }
