@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from
 import { Toaster, toast } from "sonner";
 import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
-import { Lock, User, Terminal, ChevronRight, LogOut, Activity, ShieldAlert, Cpu, Plus, CreditCard, ShoppingBag, Code2, Play, Settings as SettingsIcon, Home, Compass, MessageSquare, LayoutDashboard, Globe, Check, Link } from "lucide-react";
+import { Lock, User, Terminal, ChevronRight, LogOut, Activity, ShieldAlert, Cpu, Plus, CreditCard, ShoppingBag, Code2, Play, Settings as SettingsIcon, Home, Compass, MessageSquare, Globe, Check, Link } from "lucide-react";
 
 axios.defaults.baseURL = process.env.REACT_APP_BACKEND_URL;
 axios.defaults.withCredentials = true;
@@ -169,7 +169,6 @@ const VoidTransition = ({ onComplete }) => {
   );
 };
 
-// Application Layout with iOS Glass Footer
 const AppLayout = ({ children }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -216,7 +215,6 @@ const AppLayout = ({ children }) => {
         {children}
       </main>
 
-      {/* iOS Glass Footer */}
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-sm sm:max-w-md">
         <div className="ios-glass rounded-3xl p-1.5 flex items-center justify-between shadow-[0_20px_40px_rgba(0,0,0,0.6)]">
           {navItems.map(item => {
@@ -243,7 +241,6 @@ const AppLayout = ({ children }) => {
   );
 };
 
-// Pages Components
 const HomeTab = () => {
   const { user } = useAuth();
   return (
@@ -400,7 +397,7 @@ const ProxyTab = () => {
             <Textarea 
               value={proxies} 
               onChange={e => setProxies(e.target.value)} 
-              placeholder="192.168.1.1:8080&#10;gw.proxyrise.com:443:user:pass" 
+              placeholder="192.168.1.1:8080\n192.168.1.1:8080:user:pass" 
               className="min-h-[200px] mb-4" 
               data-testid="proxies-textarea"
             />
@@ -441,19 +438,16 @@ const ProxyTab = () => {
 };
 
 const formatCard = (line) => {
-  // Extract all digit blocks
-  const digitsOnly = line.replace(/\\D+/g, ' ').trim().split(' ');
+  const digitsOnly = line.replace(/\D+/g, ' ').trim().split(' ');
   const ccIndex = digitsOnly.findIndex(part => part.length >= 13 && part.length <= 19);
   
   if (ccIndex !== -1 && digitsOnly.length >= ccIndex + 4) {
     return `${digitsOnly[ccIndex]}|${digitsOnly[ccIndex+1]}|${digitsOnly[ccIndex+2]}|${digitsOnly[ccIndex+3]}`;
   }
   
-  // Fallback separator split
-  const parts = line.split(/[\\/\\:\\|\\,\\s]+/);
+  const parts = line.split(/[\/\:\|\,\s]+/);
   if (parts.length >= 4) {
-    // Basic cleanup
-    return `${parts[0].replace(/\\D/g, '')}|${parts[1].replace(/\\D/g, '')}|${parts[2].replace(/\\D/g, '')}|${parts[3].replace(/\\D/g, '')}`;
+    return `${parts[0].replace(/\D/g, '')}|${parts[1].replace(/\D/g, '')}|${parts[2].replace(/\D/g, '')}|${parts[3].replace(/\D/g, '')}`;
   }
   return line.trim();
 };
@@ -462,16 +456,15 @@ const CheckerTab = () => {
   const { user, checkAuth } = useAuth();
   const [activeGateway, setActiveGateway] = useState("stripe");
   
-  const [stripeSkType, setStripeSkType] = useState("sk_based"); // "sk_based" | "non_sk"
+  const [stripeSkType, setStripeSkType] = useState("sk_based");
   const [stripeSk, setStripeSk] = useState("");
   const [stripeCc, setStripeCc] = useState("");
   
-  const [shopifySiteType, setShopifySiteType] = useState("own"); // "own" | "inbuilt"
+  const [shopifySiteType, setShopifySiteType] = useState("own");
   const [shopifyCc, setShopifyCc] = useState("");
 
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState([]);
-  
   const [stats, setStats] = useState({ approved: 0, declined: 0, errors: 0 });
 
   const gateways = [
@@ -486,7 +479,7 @@ const CheckerTab = () => {
     e.preventDefault();
     
     let rawCards = activeGateway === 'stripe' ? stripeCc : shopifyCc;
-    const initialLines = rawCards.split('\\n');
+    const initialLines = rawCards.split('\n');
     let validCards = [];
     
     for (const line of initialLines) {
@@ -506,8 +499,8 @@ const CheckerTab = () => {
       const card = validCards[i];
       
       remainingCards.shift();
-      if (activeGateway === 'stripe') setStripeCc(remainingCards.join('\\n'));
-      else setShopifyCc(remainingCards.join('\\n'));
+      if (activeGateway === 'stripe') setStripeCc(remainingCards.join('\n'));
+      else setShopifyCc(remainingCards.join('\n'));
 
       try {
         const payload = {
@@ -562,7 +555,6 @@ const CheckerTab = () => {
           <p className="text-neutral-500 mt-1">Select a gateway and input payloads to begin validation.</p>
         </div>
         
-        {/* Gateway Selection Row */}
         <div className="flex flex-wrap items-center p-1 bg-neutral-900/50 border border-neutral-800/80 rounded-xl w-fit">
           {gateways.map(gw => (
             <button 
@@ -586,7 +578,6 @@ const CheckerTab = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8">
-        {/* Checker Interface */}
         <div className="lg:col-span-3 space-y-6">
           <div className="ios-glass-card rounded-3xl overflow-hidden min-h-[450px]">
             <div className="p-6 md:p-8">
@@ -604,11 +595,23 @@ const CheckerTab = () => {
                         <button type="button" onClick={() => setStripeSkType("non_sk")} className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${stripeSkType === "non_sk" ? "bg-neutral-800 text-white shadow-sm" : "text-neutral-500 hover:text-neutral-300"}`}>Non-SK Based</button>
                       </div>
                     </div>
-                    {stripeSkType === 'sk_based' && (
+                    {stripeSkType === 'sk_based' && !user.stripe_sk && (
                       <div className="space-y-2">
                         <label className="text-xs font-medium text-neutral-400 ml-1">Secret Key</label>
                         <Input type="password" placeholder="sk_live_..." value={stripeSk} onChange={(e) => setStripeSk(e.target.value)} required disabled={running} />
                       </div>
+                    )}
+                    {stripeSkType === 'sk_based' && user.stripe_sk && (
+                       <div className="bg-white/[0.03] border border-white/[0.05] rounded-xl px-4 py-3 flex items-center justify-between">
+                         <span className="text-xs text-neutral-400">Using Saved Default SK Key from Settings</span>
+                         <Check className="w-4 h-4 text-green-500" />
+                       </div>
+                    )}
+                    {stripeSkType === 'non_sk' && (
+                       <div className="bg-white/[0.03] border border-white/[0.05] rounded-xl px-4 py-3 flex items-center justify-between">
+                         <span className="text-xs text-neutral-400">Using Global Admin Configured Secret Key</span>
+                         <Check className="w-4 h-4 text-green-500" />
+                       </div>
                     )}
                     <div className="space-y-2">
                       <label className="text-xs font-medium text-neutral-400 ml-1">Card Payloads</label>
@@ -632,6 +635,18 @@ const CheckerTab = () => {
                         <button type="button" onClick={() => setShopifySiteType("inbuilt")} className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${shopifySiteType === "inbuilt" ? "bg-neutral-800 text-white shadow-sm" : "text-neutral-500 hover:text-neutral-300"}`}>Inbuilt Site</button>
                       </div>
                     </div>
+                    {shopifySiteType === 'own' && (
+                       <div className="bg-white/[0.03] border border-white/[0.05] rounded-xl px-4 py-3 flex items-center justify-between">
+                         <span className="text-xs text-neutral-400">Using Saved Personal Product URLs from Settings</span>
+                         <Check className="w-4 h-4 text-green-500" />
+                       </div>
+                    )}
+                    {shopifySiteType === 'inbuilt' && (
+                       <div className="bg-white/[0.03] border border-white/[0.05] rounded-xl px-4 py-3 flex items-center justify-between">
+                         <span className="text-xs text-neutral-400">Using Global Admin Configured Product URLs</span>
+                         <Check className="w-4 h-4 text-green-500" />
+                       </div>
+                    )}
                     <div className="space-y-2">
                       <label className="text-xs font-medium text-neutral-400 ml-1">Card Payloads</label>
                       <Textarea placeholder="4111...|12|25|123" value={shopifyCc} onChange={(e) => setShopifyCc(e.target.value)} className="min-h-[200px]" required disabled={running} />
@@ -660,7 +675,6 @@ const CheckerTab = () => {
             </div>
           </div>
 
-          {/* Live Log Area */}
           {results.length > 0 && (
             <div className="ios-glass-card rounded-3xl p-6">
               <h3 className="text-sm font-medium text-white mb-4">Terminal Output</h3>
@@ -672,7 +686,7 @@ const CheckerTab = () => {
                       <span className="font-semibold">{r.card}</span>
                     </div>
                     <div className="truncate max-w-[200px] sm:max-w-md opacity-80">
-                      {r.response?.result?.message || r.response?.message || JSON.stringify(r.response)}
+                      {r.response}
                     </div>
                   </div>
                 ))}
@@ -681,7 +695,6 @@ const CheckerTab = () => {
           )}
         </div>
 
-        {/* Dashboard Side Widget */}
         <div className="lg:col-span-1 space-y-6">
           <div className="ios-glass-card p-6 rounded-3xl flex flex-col items-center text-center justify-center min-h-[200px] relative overflow-hidden">
              <div className="absolute top-0 right-0 p-4 opacity-5"><Activity className="w-32 h-32 text-white"/></div>
@@ -717,14 +730,26 @@ const CheckerTab = () => {
 const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newCredits, setNewCredits] = useState(100);
 
+  const { user, checkAuth } = useAuth();
+  const [globalSk, setGlobalSk] = useState("");
+  const [globalUrls, setGlobalUrls] = useState("");
+
   const fetchUsers = async () => {
     try { const { data } = await axios.get("/api/admin/users"); setUsers(data); } catch (e) {} finally { setLoading(false); }
   };
-  useEffect(() => { fetchUsers(); }, []);
+  
+  useEffect(() => { 
+    fetchUsers(); 
+    if (user) {
+      setGlobalSk(user.stripe_sk || "");
+      setGlobalUrls(user.shopify_urls || "");
+    }
+  }, [user]);
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
@@ -734,9 +759,18 @@ const AdminDashboard = () => {
     } catch (e) { toast.error(formatApiError(e.response?.data?.detail)); }
   };
 
-  const toggleStatus = async (user) => {
+  const handleSaveGlobal = async (e) => {
+    e.preventDefault();
     try {
-      await axios.patch(`/api/admin/users/${user._id}`, { status: user.status === "active" ? "banned" : "active" });
+      await axios.patch("/api/auth/me", { stripe_sk: globalSk, shopify_urls: globalUrls });
+      toast.success("Global config updated");
+      checkAuth();
+    } catch (e) { toast.error(formatApiError(e.response?.data?.detail)); }
+  };
+
+  const toggleStatus = async (u) => {
+    try {
+      await axios.patch(`/api/admin/users/${u._id}`, { status: u.status === "active" ? "banned" : "active" });
       fetchUsers();
     } catch (e) {}
   };
@@ -749,6 +783,24 @@ const AdminDashboard = () => {
   return (
     <div className="max-w-[1400px] mx-auto space-y-6">
       <h1 className="text-2xl font-semibold text-white">Admin Control Panel</h1>
+      
+      <div className="ios-glass-card rounded-3xl p-6 mb-6">
+        <h3 className="font-medium text-neutral-200 mb-4">Global API Configuration</h3>
+        <form onSubmit={handleSaveGlobal} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-neutral-400">Global Stripe SK (For Non-SK Based)</label>
+            <Input type="password" value={globalSk} onChange={e => setGlobalSk(e.target.value)} placeholder="sk_live_..." />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-neutral-400">Global Shopify URLs (For Inbuilt Site)</label>
+            <Textarea value={globalUrls} onChange={e => setGlobalUrls(e.target.value)} placeholder="https://store.com/products/1" className="min-h-[100px]" />
+          </div>
+          <div className="md:col-span-2">
+            <Button type="submit">Save Global Config</Button>
+          </div>
+        </form>
+      </div>
+
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="xl:col-span-1 ios-glass-card rounded-3xl p-6 h-fit">
           <h3 className="font-medium text-neutral-200 mb-4 flex items-center gap-2"><Plus className="w-4 h-4"/> Create User</h3>
