@@ -462,8 +462,6 @@ const CheckerTab = () => {
   
   const [shopifySiteType, setShopifySiteType] = useState("own");
   const [shopifyCc, setShopifyCc] = useState("");
-  
-  const [shopifyV2Cc, setShopifyV2Cc] = useState("");
 
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState([]);
@@ -472,7 +470,7 @@ const CheckerTab = () => {
   const gateways = [
     { id: 'stripe', name: 'Stripe', icon: <CreditCard className="w-4 h-4"/>, active: true },
     { id: 'shopify', name: 'Shopify', icon: <ShoppingBag className="w-4 h-4"/>, active: true },
-    { id: 'shopify_v2', name: 'Shopify V2', icon: <Code2 className="w-4 h-4"/>, active: true },
+    { id: 'braintree', name: 'Braintree', icon: <Code2 className="w-4 h-4"/>, active: false, soon: true },
     { id: 'paypal', name: 'PayPal', icon: <Globe className="w-4 h-4"/>, active: false, soon: true },
     { id: 'adyen', name: 'Adyen', icon: <ShieldAlert className="w-4 h-4"/>, active: false, soon: true }
   ];
@@ -480,8 +478,8 @@ const CheckerTab = () => {
   const handleStartChecker = async (e) => {
     e.preventDefault();
     
-    let rawCards = activeGateway === 'stripe' ? stripeCc : activeGateway === 'shopify' ? shopifyCc : shopifyV2Cc;
-    const initialLines = rawCards.split('\n');
+    let rawCards = activeGateway === 'stripe' ? stripeCc : shopifyCc;
+    const initialLines = rawCards.split('\\n');
     let validCards = [];
     
     for (const line of initialLines) {
@@ -499,11 +497,30 @@ const CheckerTab = () => {
 
     for (let i = 0; i < validCards.length; i++) {
       const card = validCards[i];
+      const resultId = Date.now() + i;
       
       remainingCards.shift();
-      if (activeGateway === 'stripe') setStripeCc(remainingCards.join('\n'));
-      else if (activeGateway === 'shopify') setShopifyCc(remainingCards.join('\n'));
-      else setShopifyV2Cc(remainingCards.join('\n'));
+      if (activeGateway === 'stripe') setStripeCc(remainingCards.join('\\n'));
+      else setShopifyCc(remainingCards.join('\\n'));
+
+      // Fetch BIN Info
+      let binStr = "";
+      try {
+         const binRes = await axios.get(`https://lookup.binlist.net/${card.substring(0,6)}`);
+         const bData = binRes.data;
+         binStr = `${bData.bank?.name?.toUpperCase() || 'UNKNOWN BANK'} | ${bData.country?.alpha2 || 'XX'} | ${(bData.type || 'UNKNOWN').toUpperCase()} | ${(bData.scheme || '').toUpperCase()}`;
+      } catch (e) {
+         binStr = "UNKNOWN BIN DATA";
+      }
+
+      setResults(prev => [{ 
+        id: resultId, 
+        card, 
+        binInfo: binStr, 
+        response: "Processing validation...", 
+        loading: true, 
+        time: new Date().toLocaleTimeString() 
+      }, ...prev]);
 
       try {
         const payload = {
@@ -517,35 +534,34 @@ const CheckerTab = () => {
         const { data } = await axios.post("/api/checker/run", payload);
         
         let isApproved = false;
-        let messageStr = "";
+        let stat = "DECLINED";
+        let msg = "";
+        let price = "";
         
-        if (activeGateway === 'stripe') {
-          if (data.status === true && data.result) {
-            isApproved = data.result.status?.toLowerCase() === "charged" || data.result.status?.toLowerCase() === "live";
-          } else if (data.Status) {
-            isApproved = data.Status.toUpperCase() === "CHARGED" || data.Status.toUpperCase() === "LIVE";
-          }
-          // Raw format for Stripe as requested
-          messageStr = JSON.stringify(data);
+        if (data.status === true && data.result) {
+          isApproved = data.result.status?.toLowerCase() === "charged" || data.result.status?.toLowerCase() === "live";
+          stat = data.result.status?.toUpperCase() || (isApproved ? "LIVE" : "DECLINED");
+          msg = data.result.message || data.result.decline_code || JSON.stringify(data.result);
+          price = data.result.price || data.result.amount || "";
+        } else if (data.Status || data.status) {
+          const rawStatus = (data.Status || data.status).toString().toUpperCase();
+          isApproved = rawStatus === "CHARGED" || rawStatus === "LIVE" || rawStatus === "APPROVED";
+          stat = rawStatus;
+          msg = data.Response || data.message || data.result?.message || JSON.stringify(data);
+          price = data.Price || data.price || data.amount || "";
         } else {
-          if (data.status === true && data.result) {
-            isApproved = data.result.status?.toLowerCase() === "charged" || data.result.status?.toLowerCase() === "live";
-            messageStr = data.result.message || JSON.stringify(data.result);
-          } else if (data.Status) {
-            isApproved = data.Status.toUpperCase() === "CHARGED" || data.Status.toUpperCase() === "LIVE";
-            messageStr = data.Response || JSON.stringify(data);
-          } else if (data.status === "CHARGED" || data.charged === true || data.status === "LIVE" || data.status === "APPROVED") {
-            isApproved = true;
-            messageStr = data.message || "Charged / Approved";
-          } else if (data.status === "DECLINED") {
-            isApproved = false;
-            messageStr = data.message || "Declined";
-          } else {
-            messageStr = data.message || JSON.stringify(data);
-          }
+          stat = "UNKNOWN";
+          msg = JSON.stringify(data);
         }
-        
-        setResults(prev => [{ card, response: messageStr, isApproved, time: new Date().toLocaleTimeString(), original: data }, ...prev]);
+
+        setResults(prev => prev.map(r => r.id === resultId ? {
+          ...r,
+          loading: false,
+          isApproved,
+          stat,
+          msg,
+          price
+        } : r));
         
         if (isApproved) {
           setStats(prev => ({ ...prev, approved: prev.approved + 1 }));
@@ -556,7 +572,14 @@ const CheckerTab = () => {
         if (i % 5 === 0) checkAuth();
         
       } catch (err) {
-        setResults(prev => [{ card, response: "Network Error or Timeout", isApproved: false, error: true, time: new Date().toLocaleTimeString() }, ...prev]);
+        setResults(prev => prev.map(r => r.id === resultId ? {
+          ...r,
+          loading: false,
+          isApproved: false,
+          error: true,
+          stat: "ERROR",
+          msg: "Network Error or Timeout"
+        } : r));
         setStats(prev => ({ ...prev, errors: prev.errors + 1 }));
       }
     }
@@ -706,16 +729,37 @@ const CheckerTab = () => {
           {results.length > 0 && (
             <div className="ios-glass-card rounded-3xl p-6">
               <h3 className="text-sm font-medium text-white mb-4">Terminal Output</h3>
-              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 font-mono text-[11px] sm:text-xs">
+              <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 font-mono text-[11px] sm:text-xs">
                 {results.map((r, i) => (
-                  <div key={i} className={`p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${r.isApproved ? 'bg-green-500/10 border-green-500/20 text-green-400' : r.error ? 'bg-neutral-800/50 border-neutral-700/50 text-neutral-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className="opacity-50">[{r.time}]</span>
-                      <span className="font-semibold">{r.card}</span>
+                  <div key={r.id || i} className={`p-4 rounded-xl border flex flex-col gap-2 ${
+                    r.loading ? 'bg-neutral-800/30 border-neutral-700/30 text-neutral-400' :
+                    r.isApproved ? 'bg-green-500/10 border-green-500/20 text-green-400' : 
+                    r.error ? 'bg-neutral-800/50 border-neutral-700/50 text-neutral-400' : 
+                    'bg-red-500/10 border-red-500/20 text-red-400'
+                  }`}>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/5 pb-2 mb-1 gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="opacity-50">[{r.time}]</span>
+                        <span className="font-semibold text-white tracking-widest">{r.card}</span>
+                      </div>
+                      {r.binInfo && (
+                        <div className="text-[10px] text-neutral-400 font-sans tracking-wide">
+                          {r.binInfo}
+                        </div>
+                      )}
                     </div>
-                    <div className="text-[10px] sm:text-xs opacity-80 break-all sm:max-w-2xl text-right">
-                      {r.response}
-                    </div>
+                    {r.loading ? (
+                      <div className="flex items-center gap-2 text-neutral-400">
+                        <div className="w-3 h-3 border-2 border-neutral-500 border-t-transparent rounded-full animate-spin"></div>
+                        <span>Processing validation...</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-0.5 mt-1">
+                        <div className="text-neutral-200"><span className="opacity-50 mr-2">Status:</span> {r.stat}</div>
+                        <div className="text-neutral-200"><span className="opacity-50 mr-2">Response:</span> {r.msg}</div>
+                        {r.price && <div className="text-neutral-200"><span className="opacity-50 mr-2">Price:</span> {r.price}</div>}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

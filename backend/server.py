@@ -409,14 +409,6 @@ async def run_checker(req: CheckerRequest, user: dict = Depends(get_current_user
             await db.users.update_one({"_id": ObjectId(user["_id"])}, {"$inc": {"total_checked_ccs": 1}})
             return data
             
-        elif req.gateway == "shopify_v2":
-            url = f"https://gates.valyrian.cc/autoshopify/curl/check?card={req.card}&proxy={proxy_url}"
-            res = requests.get(url, timeout=30.0, verify=False)
-            data = res.json()
-            
-            await db.users.update_one({"_id": ObjectId(user["_id"])}, {"$inc": {"total_checked_ccs": 1}})
-            return data
-            
         else:
             return {"status": False, "message": "Invalid Gateway"}
             
