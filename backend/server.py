@@ -134,6 +134,29 @@ class UserUpdate(BaseModel):
     credits: Optional[int] = None
     limits: Optional[str] = None
     password: Optional[str] = None
+    telegram_id: Optional[str] = None
+    shopify_urls: Optional[str] = None
+    total_checked_ccs: Optional[int] = None
+@app.patch("/api/auth/me")
+async def update_me(req: UserUpdate, user: dict = Depends(get_current_user)):
+    update_data = {}
+    if req.password is not None and req.password.strip():
+        update_data["password_hash"] = hash_password(req.password)
+    if req.telegram_id is not None:
+        update_data["telegram_id"] = req.telegram_id
+    if req.shopify_urls is not None:
+        update_data["shopify_urls"] = req.shopify_urls
+        
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No fields to update")
+        
+    await db.users.update_one({"_id": ObjectId(user["_id"])}, {"$set": update_data})
+    
+    updated_user = await db.users.find_one({"_id": ObjectId(user["_id"])}, {"password_hash": 0})
+    if updated_user:
+        updated_user["_id"] = str(updated_user["_id"])
+    return updated_user
+
 
 class ProxyCheckRequest(BaseModel):
     proxies: str
@@ -288,7 +311,7 @@ async def check_proxies(req: ProxyCheckRequest, user: dict = Depends(get_current
         try:
             async with httpx.AsyncClient(proxy=proxy_url, timeout=10.0, verify=False) as client:
                 res_stripe = await client.get("https://api.stripe.com/healthcheck", follow_redirects=True)
-                res_shopify = await client.post("https://graphql.myshopify.com/api/graphql", json={"query": "{ shop { name } }"}, follow_redirects=True)
+                res_shopify = await client.get("https://shopify.com", follow_redirects=True)
                 
                 if res_stripe.status_code and res_shopify.status_code:
                     existing = await db.proxies.find_one({"user_id": str(user["_id"]), "proxy_url": proxy_url})

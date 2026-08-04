@@ -6,15 +6,11 @@ async def test_proxy():
     print(f"Testing {proxy_url}")
     try:
         async with httpx.AsyncClient(proxy=proxy_url, timeout=15.0, verify=False) as client:
-            print("Client created")
             res_stripe = await client.get("https://api.stripe.com/healthcheck", follow_redirects=True)
             print("Stripe status:", res_stripe.status_code)
-            print("Stripe text:", res_stripe.text)
-            
-            res_shopify = await client.post("https://graphql.myshopify.com/api/graphql", json={"query": "{ shop { name } }"}, follow_redirects=True)
+            res_shopify = await client.get("https://checkout.shopify.com", follow_redirects=True)
             print("Shopify status:", res_shopify.status_code)
-            print("Shopify text:", res_shopify.text)
     except Exception as e:
-        print("Error:", e)
+        print("Error:", type(e), e)
 
 asyncio.run(test_proxy())
