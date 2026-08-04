@@ -341,6 +341,8 @@ async def check_proxies(req: ProxyCheckRequest, user: dict = Depends(get_current
         "successful": len(successful),
         "failed": len(failed),
         "saved": successful
+    }
+
 class CheckerRequest(BaseModel):
     gateway: str
     card: str
