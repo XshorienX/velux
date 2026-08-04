@@ -253,7 +253,9 @@ async def delete_proxy(proxy_id: str, user: dict = Depends(get_current_user)):
 
 @app.post("/api/proxies/check")
 async def check_proxies(req: ProxyCheckRequest, user: dict = Depends(get_current_user)):
-    proxy_lines = [p.strip() for p in req.proxies.split("\n") if p.strip()]
+    # Sometimes users paste with weird line breaks like \n:, so let's normalize \n: to :
+    normalized_proxies = req.proxies.replace('\r\n:', ':').replace('\n:', ':')
+    proxy_lines = [p.strip() for p in normalized_proxies.split("\n") if p.strip()]
     
     async def test_and_save(raw_proxy: str):
         if raw_proxy == "test:proxy":
@@ -272,16 +274,19 @@ async def check_proxies(req: ProxyCheckRequest, user: dict = Depends(get_current
         proxy_url = ""
         if "://" in raw_proxy:
             proxy_url = raw_proxy
+        elif len(parts) >= 4:
+            host = parts[0]
+            port = parts[1]
+            user_name = parts[2]
+            password = ":".join(parts[3:])
+            proxy_url = f"http://{user_name}:{password}@{host}:{port}"
         elif len(parts) == 2:
             proxy_url = f"http://{parts[0]}:{parts[1]}"
-        elif len(parts) == 4:
-            proxy_url = f"http://{parts[2]}:{parts[3]}@{parts[0]}:{parts[1]}"
         else:
             return False, raw_proxy
             
         try:
-            proxies_config = {"all://": proxy_url}
-            async with httpx.AsyncClient(proxies=proxies_config, timeout=10.0, verify=False) as client:
+            async with httpx.AsyncClient(proxy=proxy_url, timeout=10.0, verify=False) as client:
                 res_stripe = await client.get("https://api.stripe.com/healthcheck", follow_redirects=True)
                 res_shopify = await client.post("https://graphql.myshopify.com/api/graphql", json={"query": "{ shop { name } }"}, follow_redirects=True)
                 
@@ -296,7 +301,8 @@ async def check_proxies(req: ProxyCheckRequest, user: dict = Depends(get_current
                             "created_at": datetime.now(timezone.utc)
                         })
                     return True, raw_proxy
-        except Exception:
+        except Exception as e:
+            print(f"Proxy failed: {raw_proxy} Error: {str(e)}")
             pass
         return False, raw_proxy
 
