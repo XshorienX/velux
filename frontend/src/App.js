@@ -434,6 +434,24 @@ const ProxyTab = () => {
   );
 };
 
+const formatCard = (line) => {
+  // Extract all digit blocks
+  const digitsOnly = line.replace(/\\D+/g, ' ').trim().split(' ');
+  const ccIndex = digitsOnly.findIndex(part => part.length >= 13 && part.length <= 19);
+  
+  if (ccIndex !== -1 && digitsOnly.length >= ccIndex + 4) {
+    return `${digitsOnly[ccIndex]}|${digitsOnly[ccIndex+1]}|${digitsOnly[ccIndex+2]}|${digitsOnly[ccIndex+3]}`;
+  }
+  
+  // Fallback separator split
+  const parts = line.split(/[\\/\\:\\|\\,\\s]+/);
+  if (parts.length >= 4) {
+    // Basic cleanup
+    return `${parts[0].replace(/\\D/g, '')}|${parts[1].replace(/\\D/g, '')}|${parts[2].replace(/\\D/g, '')}|${parts[3].replace(/\\D/g, '')}`;
+  }
+  return line.trim();
+};
+
 const CheckerTab = () => {
   const { user, checkAuth } = useAuth();
   const [activeGateway, setActiveGateway] = useState("stripe");
@@ -451,7 +469,7 @@ const CheckerTab = () => {
   const gateways = [
     { id: 'stripe', name: 'Stripe', icon: <CreditCard className="w-4 h-4"/>, active: true },
     { id: 'shopify', name: 'Shopify', icon: <ShoppingBag className="w-4 h-4"/>, active: true },
-    { id: 'braintree', name: 'Braintree', icon: <Code2 className="w-4 h-4"/>, active: true },
+    { id: 'braintree', name: 'Braintree', icon: <Code2 className="w-4 h-4"/>, active: false, soon: true },
     { id: 'paypal', name: 'PayPal', icon: <Globe className="w-4 h-4"/>, active: false, soon: true },
     { id: 'adyen', name: 'Adyen', icon: <ShieldAlert className="w-4 h-4"/>, active: false, soon: true }
   ];
@@ -460,20 +478,32 @@ const CheckerTab = () => {
     e.preventDefault();
     
     let rawCards = activeGateway === 'stripe' ? stripeCc : shopifyCc;
-    const cards = rawCards.split('\n').map(c => c.trim()).filter(c => c);
+    const initialLines = rawCards.split('\\n');
+    let validCards = [];
     
-    if (cards.length === 0) return toast.error("No cards provided.");
+    for (const line of initialLines) {
+      if (line.trim()) validCards.push(formatCard(line));
+    }
     
-    let urls = shopifyUrls.split('\n').map(u => u.trim()).filter(u => u);
+    if (validCards.length === 0) return toast.error("No valid cards provided.");
+    
+    let urls = shopifyUrls.split('\\n').map(u => u.trim()).filter(u => u);
     if (activeGateway === 'shopify' && urls.length === 0) return toast.error("No product URLs provided.");
 
     setRunning(true);
     setResults([]);
     setStats({ approved: 0, declined: 0, errors: 0 });
-    toast.info("Checker engine initialized. Connecting to nodes...");
+    toast.info("Checker engine initialized. Testing cards...");
+    
+    let remainingCards = [...validCards];
 
-    for (let i = 0; i < cards.length; i++) {
-      const card = cards[i];
+    for (let i = 0; i < validCards.length; i++) {
+      const card = validCards[i];
+      
+      remainingCards.shift();
+      if (activeGateway === 'stripe') setStripeCc(remainingCards.join('\\n'));
+      else setShopifyCc(remainingCards.join('\\n'));
+
       try {
         const payload = {
           gateway: activeGateway,
@@ -494,7 +524,6 @@ const CheckerTab = () => {
           setStats(prev => ({ ...prev, declined: prev.declined + 1 }));
         }
         
-        // Update user credits/total secretly
         if (i % 5 === 0) checkAuth();
         
       } catch (err) {
