@@ -1139,6 +1139,36 @@ const AdminDashboard = () => {
 };
 
 export default function App() {
+const ProtectedRoute = ({ children, adminOnly = false }) => {
+  const { user, loading, justLoggedIn, setJustLoggedIn } = useAuth();
+  const [transitioning, setTransitioning] = useState(false);
+
+  useEffect(() => {
+    if (justLoggedIn) setTransitioning(true);
+  }, [justLoggedIn]);
+
+  if (loading) return <div className="min-h-screen bg-black flex items-center justify-center"><div className="w-6 h-6 border-2 border-neutral-800 border-t-neutral-200 rounded-full animate-spin"></div></div>;
+  if (!user) return <Navigate to="/login" replace />;
+  if (adminOnly && user.role !== "admin") return <Navigate to="/app/home" replace />;
+  if (transitioning) return <VoidTransition onComplete={() => { setTransitioning(false); setJustLoggedIn(false); }} />;
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="w-full h-full">
+      {adminOnly ? (
+        <div className="min-h-screen flex flex-col z-10 relative bg-black">
+          <header className="h-16 border-b border-neutral-800/80 bg-black/90 px-6 flex items-center justify-between sticky top-0 z-40">
+            <div className="font-semibold text-white">VeLuX Admin Panel</div>
+            <Button variant="outline" size="sm" onClick={() => { axios.post("/api/auth/logout"); window.location.href = "/"; }}>Logout</Button>
+          </header>
+          <main className="flex-1 p-6 lg:p-10">{children}</main>
+        </div>
+      ) : (
+        <AppLayout>{children}</AppLayout>
+      )}
+    </motion.div>
+  );
+};
+
   return (
     <AuthProvider>
       <Toaster theme="dark" toastOptions={{ className: 'rounded-2xl border border-neutral-800/50 bg-[#0A0A0A]/90 backdrop-blur-xl text-neutral-200 font-sans shadow-2xl' }} />

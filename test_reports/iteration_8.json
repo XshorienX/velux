@@ -1,0 +1,26 @@
+{
+  "summary": "ProtectedRoute crash is FIXED. Frontend loads properly. Admin login (SHORIEN/Xiron696@) works and redirects to /app/home. Admin dashboard successfully generates redeem codes (verified VELUX-DHAG-XFBY-HAQD was created and appeared in the list). One minor UI issue: the 'Plan Level' card on /app/home appears to render an empty value (label shows but no 'admin' text under it visually) — although 'ADMIN' badge is present in header. Overall app is functional and unblocked.",
+  "tested_scope": ["frontend", "backend", "integration", "auth"],
+  "passed": [
+    "GET /login renders without ReferenceError: ProtectedRoute is not defined (0 page errors captured)",
+    "Login form visible with [data-testid='login-submit']",
+    "POST /api/auth/login as SHORIEN succeeds, redirects to /app/home",
+    "/app/home renders Home Dashboard with credits 999,999, ADMIN badge in header, Redeem Access Code box",
+    "/admin route renders Admin Control Panel with Global Config, Create User, Generate Redeem Code, users table",
+    "Generate Redeem Code: clicking 'Generate' with type=Credits, value=100 created VELUX-DHAG-XFBY-HAQD and it appeared in the code list"
+  ],
+  "failed": [
+    {
+      "area": "frontend/HomeTab Plan Level card",
+      "issue": "The 'Plan Level' stat card on /app/home shows only the label 'Plan Level' with no value rendered underneath (should display 'admin'/'ADMIN'/'PREMIUM'/'FREE'). Compare to sibling cards (Lifetime Checked=27, Available Credits=999,999, System Health=Operational) which all have values.",
+      "evidence": "Screenshot of /app/home shows blank space under 'Plan Level' label. Body inner_text between 'Plan Level' and 'System Health' is empty. The word 'admin' present on page comes from header ADMIN badge, not the card.",
+      "priority": "MEDIUM"
+    }
+  ],
+  "action_items": [
+    "In HomeTab, ensure the Plan Level card actually renders the user's plan value (e.g. user.plan.toUpperCase()) below the 'Plan Level' label. It is currently blank."
+  ],
+  "success_rate": {"backend": "100%", "frontend": "90%"},
+  "retest_needed": false,
+  "full_testing_deferred": true
+}
