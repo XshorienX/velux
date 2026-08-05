@@ -47,7 +47,7 @@ Before you begin, make sure all your code is pushed to a repository on GitHub or
 
 4. Scroll down to **Environment Variables** and add:
    - Key: `REACT_APP_BACKEND_URL` | Value: *Paste the backend URL you copied in Step 1*
-   - Key: `NODE_VERSION` | Value: `20.0.0`
+   - Key: `NODE_VERSION` | Value: `20.18.0`
 
 5. Click **"Create Static Site"**.
 6. Once created, go to the **Redirects/Rewrites** section of your new frontend service in the Render dashboard:
