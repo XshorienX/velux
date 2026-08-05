@@ -101,3 +101,61 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: "Test if the admin patch user endpoint handles 'plan' field updates and user creation endpoint handles 'plan' field properly"
+
+backend:
+  - task: "Admin user creation endpoint handles 'plan' field"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "Tested POST /api/admin/users endpoint with plan field. Successfully created user with plan='premium'. Plan field is correctly stored in database. Verified with user ID dbe1989b-ab57-44a5-bf65-6c50bcb7a1bd."
+  
+  - task: "Admin patch user endpoint handles 'plan' field updates"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "Tested PATCH /api/admin/users/{user_id} endpoint with plan field. Successfully updated user plan from 'premium' to 'free', then back to 'premium'. All updates persisted correctly in database. Verified by fetching user list."
+
+frontend:
+  - task: "No frontend testing required"
+    implemented: true
+    working: "NA"
+    file: "N/A"
+    stuck_count: 0
+    priority: "low"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "testing"
+          comment: "Frontend testing not required for this task as per review request."
+
+metadata:
+  created_by: "testing_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Admin user creation endpoint handles 'plan' field"
+    - "Admin patch user endpoint handles 'plan' field updates"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    - agent: "testing"
+      message: "Completed comprehensive testing of admin user creation and patch endpoints for 'plan' field handling. All tests passed (10/10). Both endpoints correctly handle the 'plan' field - creation endpoint accepts and stores plan values, patch endpoint updates plan values, and all changes persist correctly in the database. Test file created at /app/backend_test.py for future regression testing."

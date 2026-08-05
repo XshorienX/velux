@@ -1010,6 +1010,7 @@ const AdminDashboard = () => {
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newCredits, setNewCredits] = useState(100);
+  const [newPlan, setNewPlan] = useState("free");
 
   const { user, checkAuth } = useAuth();
   const [globalSk, setGlobalSk] = useState("");
@@ -1041,8 +1042,8 @@ const AdminDashboard = () => {
   const handleCreateUser = async (e) => {
     e.preventDefault();
     try {
-      await axios.post("/api/admin/users", { username: newUsername, password: newPassword, role: "user", credits: parseInt(newCredits, 10), plan: "free" });
-      toast.success("User created."); setNewUsername(""); setNewPassword(""); fetchUsers();
+      await axios.post("/api/admin/users", { username: newUsername, password: newPassword, role: "user", credits: parseInt(newCredits, 10), plan: newPlan });
+      toast.success("User created."); setNewUsername(""); setNewPassword(""); setNewPlan("free"); fetchUsers();
     } catch (e) { toast.error(formatApiError(e.response?.data?.detail)); }
   };
 
@@ -1066,6 +1067,13 @@ const AdminDashboard = () => {
   const toggleStatus = async (u) => {
     try {
       await axios.patch(`/api/admin/users/${u._id}`, { status: u.status === "active" ? "banned" : "active" });
+      fetchUsers();
+    } catch (e) {}
+  };
+
+  const togglePlan = async (u) => {
+    try {
+      await axios.patch(`/api/admin/users/${u._id}`, { plan: u.plan === "premium" ? "free" : "premium" });
       fetchUsers();
     } catch (e) {}
   };
@@ -1108,7 +1116,13 @@ const AdminDashboard = () => {
             <form onSubmit={handleCreateUser} className="space-y-4">
               <Input value={newUsername} onChange={(e) => setNewUsername(e.target.value)} required placeholder="Username" />
               <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required placeholder="Password" />
-              <Input type="number" value={newCredits} onChange={(e) => setNewCredits(e.target.value)} min="0" required placeholder="Credits" />
+              <div className="flex gap-2">
+                 <Input type="number" value={newCredits} onChange={(e) => setNewCredits(e.target.value)} min="0" required placeholder="Credits" className="flex-1" />
+                 <select value={newPlan} onChange={(e) => setNewPlan(e.target.value)} className="w-1/2 h-12 bg-neutral-900/40 border border-neutral-800 rounded-full px-4 text-sm text-neutral-200 focus:outline-none focus:border-neutral-500 focus:ring-1 focus:ring-neutral-500 transition-all">
+                    <option value="free">Free</option>
+                    <option value="premium">Premium</option>
+                 </select>
+              </div>
               <Button type="submit" className="w-full">Create Account</Button>
             </form>
           </div>
@@ -1171,6 +1185,7 @@ const AdminDashboard = () => {
                   </td>
                   <td className="px-6 py-4 text-right font-mono text-neutral-300">{u.credits?.toLocaleString()}</td>
                   <td className="px-6 py-4 text-right space-x-2">
+                    <Button variant="outline" size="sm" onClick={() => togglePlan(u)}>{u.plan === 'premium' ? 'Make Free' : 'Make Premium'}</Button>
                     <Button variant="outline" size="sm" onClick={() => toggleStatus(u)}>{u.status === 'active' ? 'Ban' : 'Unban'}</Button>
                     <Button variant="danger" size="sm" onClick={() => deleteUser(u._id)}>Delete</Button>
                   </td>
