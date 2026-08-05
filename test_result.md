@@ -102,7 +102,7 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Test if the admin patch user endpoint handles 'plan' field updates and user creation endpoint handles 'plan' field properly"
+user_problem_statement: "Verify that when an exception occurs in /api/checker/run with 'api.barryxapi.xyz' in the error string, the response returns the masked 'Api Error' message instead of 'Engine Error' exposing the URL."
 
 backend:
   - task: "Admin user creation endpoint handles 'plan' field"
@@ -128,6 +128,18 @@ backend:
         - working: true
           agent: "testing"
           comment: "Tested PATCH /api/admin/users/{user_id} endpoint with plan field. Successfully updated user plan from 'premium' to 'free', then back to 'premium'. All updates persisted correctly in database. Verified by fetching user list."
+  
+  - task: "Error masking in /api/checker/run for api.barryxapi.xyz exceptions"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "Verified error masking in /api/checker/run endpoint (lines 665-669). Created unit tests that simulate exceptions containing 'api.barryxapi.xyz'. All tests passed (9/9): (1) Exceptions with 'api.barryxapi.xyz' return masked 'Api Error: Gateway connection timeout or unavailable.' message, (2) URL is NOT exposed in error messages, (3) Other exceptions correctly use 'Engine Error' prefix, (4) Timeout errors with API URL are properly masked. Test file: /app/test_error_masking_unit.py"
 
 frontend:
   - task: "No frontend testing required"
@@ -145,13 +157,12 @@ frontend:
 metadata:
   created_by: "testing_agent"
   version: "1.0"
-  test_sequence: 1
+  test_sequence: 2
   run_ui: false
 
 test_plan:
   current_focus:
-    - "Admin user creation endpoint handles 'plan' field"
-    - "Admin patch user endpoint handles 'plan' field updates"
+    - "Error masking in /api/checker/run for api.barryxapi.xyz exceptions"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -159,3 +170,5 @@ test_plan:
 agent_communication:
     - agent: "testing"
       message: "Completed comprehensive testing of admin user creation and patch endpoints for 'plan' field handling. All tests passed (10/10). Both endpoints correctly handle the 'plan' field - creation endpoint accepts and stores plan values, patch endpoint updates plan values, and all changes persist correctly in the database. Test file created at /app/backend_test.py for future regression testing."
+    - agent: "testing"
+      message: "Completed verification of error masking in /api/checker/run endpoint. Created unit tests to simulate exceptions containing 'api.barryxapi.xyz'. All tests passed (9/9). The implementation correctly masks API URL errors with 'Api Error: Gateway connection timeout or unavailable.' message, preventing URL exposure. Other exceptions correctly use 'Engine Error' prefix. Security feature is working as expected. Test file: /app/test_error_masking_unit.py"

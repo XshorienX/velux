@@ -663,4 +663,7 @@ async def run_checker(req: CheckerRequest, user: dict = Depends(get_current_user
         return data
             
     except Exception as e:
-        return {"status": False, "message": f"Engine Error: {str(e)}"}
+        error_msg = str(e)
+        if "api.barryxapi.xyz" in error_msg:
+            return {"status": False, "message": "Api Error: Gateway connection timeout or unavailable."}
+        return {"status": False, "message": f"Engine Error: {error_msg}"}
