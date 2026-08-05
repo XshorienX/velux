@@ -244,32 +244,33 @@ const AppLayout = ({ children }) => {
   );
 };
 
-const HomeTab = () => {
-  const { user, checkAuth } = useAuth();
-  const [redeemCode, setRedeemCode] = useState("");
-  const [redeeming, setRedeeming] = useState(false);
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
-  const handleRedeem = async (e) => {
-    e.preventDefault();
-    if (!redeemCode) return;
-    setRedeeming(true);
-    try {
-      const res = await axios.post("/api/redeem", { code: redeemCode });
-      toast.success(res.data.message);
-      setRedeemCode("");
-      checkAuth();
-    } catch(e) {
-      toast.error(formatApiError(e.response?.data?.detail));
-    } finally {
-      setRedeeming(false);
+const HomeTab = () => {
+  const { user } = useAuth();
+  
+  const chartData = React.useMemo(() => {
+    const data = [];
+    const stats = user?.daily_stats || {};
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      const dayLabel = d.toLocaleDateString('en-US', { weekday: 'short' });
+      data.push({
+        name: dayLabel,
+        Approved: stats[dateStr]?.approved || 0,
+        Declined: stats[dateStr]?.declined || 0
+      });
     }
-  };
+    return data;
+  }, [user]);
 
   return (
     <div className="max-w-[1200px] mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div>
         <h1 className="text-2xl md:text-3xl font-semibold text-white tracking-tight">Home Dashboard</h1>
-        <p className="text-neutral-500 mt-1">Welcome back, {user.username}. Here is your system overview.</p>
+        <p className="text-neutral-500 mt-1">Welcome back, {user?.username}. Here is your system overview.</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
@@ -278,7 +279,7 @@ const HomeTab = () => {
             <Activity className="h-5 w-5 text-white" />
           </div>
           <h3 className="font-medium text-neutral-400 mb-1">Lifetime Checked</h3>
-          <div className="text-3xl font-mono text-white font-semibold">{user.total_checked_ccs?.toLocaleString() || 0}</div>
+          <div className="text-3xl font-mono text-white font-semibold">{user?.total_checked_ccs?.toLocaleString() || 0}</div>
         </div>
         
         <div className="ios-glass-card p-6 rounded-3xl relative overflow-hidden">
@@ -286,7 +287,7 @@ const HomeTab = () => {
             <Cpu className="h-5 w-5 text-white" />
           </div>
           <h3 className="font-medium text-neutral-400 mb-1">Available Credits</h3>
-          <div className="text-3xl font-mono text-white font-semibold">{user.credits?.toLocaleString() || 0}</div>
+          <div className="text-3xl font-mono text-white font-semibold">{user?.credits?.toLocaleString() || 0}</div>
         </div>
 
         <div className="ios-glass-card p-6 rounded-3xl relative overflow-hidden">
@@ -295,7 +296,7 @@ const HomeTab = () => {
           </div>
           <h3 className="font-medium text-neutral-400 mb-1">Plan Level</h3>
           <div className="text-xl text-white mt-2 font-medium capitalize">
-            {user.plan || 'Free'}
+            {user?.plan || 'Free'}
           </div>
         </div>
 
@@ -310,19 +311,46 @@ const HomeTab = () => {
         </div>
       </div>
 
-      <div className="ios-glass-card p-8 rounded-3xl grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-         <div>
-            <h2 className="text-xl font-semibold text-white mb-2">Buy Premium Plan</h2>
-            <p className="text-neutral-400 text-sm mb-4">Premium users receive 1000 daily credits, access to Non-SK Based gateway tools, and inbuilt global proxies. Free users are limited to 100 credits daily.</p>
-            <a href="https://t.me/XshorienX" target="_blank" rel="noreferrer" className="text-blue-400 text-sm font-medium hover:text-blue-300">Get Code from Admin @XshorienX &rarr;</a>
-         </div>
-         <form onSubmit={handleRedeem} className="bg-neutral-900/40 border border-neutral-800 p-6 rounded-2xl">
-            <label className="text-xs font-medium text-neutral-400 mb-2 block">Redeem Access Code</label>
-            <div className="flex gap-2">
-               <Input value={redeemCode} onChange={e=>setRedeemCode(e.target.value)} placeholder="VELUX-XXXX-XXXX-XXXX" required disabled={redeeming} />
-               <Button type="submit" disabled={redeeming}>{redeeming ? "..." : "Redeem"}</Button>
-            </div>
-         </form>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="ios-glass-card p-8 rounded-3xl lg:col-span-2">
+          <h3 className="font-semibold text-white mb-6">Hit Analytics (7 Days)</h3>
+          <div className="h-[250px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorAppr" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="colorDecl" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="name" stroke="#525252" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis stroke="#525252" fontSize={12} tickLine={false} axisLine={false} />
+                <Tooltip contentStyle={{ backgroundColor: '#09090b', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }} itemStyle={{ fontSize: '12px' }} />
+                <Area type="monotone" dataKey="Approved" stroke="#22c55e" fillOpacity={1} fill="url(#colorAppr)" strokeWidth={2} />
+                <Area type="monotone" dataKey="Declined" stroke="#ef4444" fillOpacity={1} fill="url(#colorDecl)" strokeWidth={2} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="ios-glass-card p-8 rounded-3xl flex flex-col justify-between">
+           <div>
+              <h2 className="text-xl font-semibold text-white mb-2">Buy Premium Plan</h2>
+              <p className="text-neutral-400 text-sm mb-4">Premium users receive 1000 daily credits, access to Non-SK Based gateway tools, and inbuilt global proxies. Free users are limited to 100 credits daily.</p>
+              <a href="https://t.me/XshorienX" target="_blank" rel="noreferrer" className="text-blue-400 text-sm font-medium hover:text-blue-300 inline-flex items-center gap-1">Get Code from Admin @XshorienX <ChevronRight className="w-3 h-3"/></a>
+           </div>
+           <form onSubmit={handleRedeem} className="bg-neutral-900/40 border border-neutral-800 p-5 rounded-2xl mt-6">
+              <label className="text-xs font-medium text-neutral-400 mb-2 block">Redeem Access Code</label>
+              <div className="flex gap-2">
+                 <Input value={redeemCode} onChange={e=>setRedeemCode(e.target.value)} placeholder="VELUX-XXXX..." required disabled={redeeming} className="h-10 text-xs" />
+                 <Button type="submit" disabled={redeeming} size="sm" className="px-4">{redeeming ? "..." : "Redeem"}</Button>
+              </div>
+           </form>
+        </div>
       </div>
     </div>
   );
@@ -1154,17 +1182,7 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
 
   return (
     <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="w-full h-full">
-      {adminOnly ? (
-        <div className="min-h-screen flex flex-col z-10 relative bg-black">
-          <header className="h-16 border-b border-neutral-800/80 bg-black/90 px-6 flex items-center justify-between sticky top-0 z-40">
-            <div className="font-semibold text-white">VeLuX Admin Panel</div>
-            <Button variant="outline" size="sm" onClick={() => { axios.post("/api/auth/logout"); window.location.href = "/"; }}>Logout</Button>
-          </header>
-          <main className="flex-1 p-6 lg:p-10">{children}</main>
-        </div>
-      ) : (
-        <AppLayout>{children}</AppLayout>
-      )}
+      <AppLayout>{children}</AppLayout>
     </motion.div>
   );
 };

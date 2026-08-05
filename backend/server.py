@@ -536,25 +536,25 @@ async def get_products(req: ProductsRequest, user: dict = Depends(get_current_us
         if proxies:
             proxy_url = random.choice(proxies)["proxy_url"]
 
-    async def fetch_store(store_url):
+    def fetch_store_sync(store_url):
         products_found = []
         try:
             url = f"{store_url}/products.json?limit=250"
-            async with httpx.AsyncClient(proxy=proxy_url, timeout=15.0, verify=False) as client:
-                res = await client.get(url, follow_redirects=True)
-                if res.status_code == 200:
-                    data = res.json()
-                    for p in data.get("products", []):
-                        for v in p.get("variants", []):
-                            price = float(v.get("price", "0"))
-                            if req.min_price <= price <= req.max_price:
-                                products_found.append(f"{store_url}/products/{p['handle']}")
-                                break
+            proxies_dict = {"http": proxy_url, "https": proxy_url} if proxy_url else None
+            res = requests.get(url, timeout=15.0, proxies=proxies_dict, verify=False)
+            if res.status_code == 200:
+                data = res.json()
+                for p in data.get("products", []):
+                    for v in p.get("variants", []):
+                        price = float(v.get("price", "0"))
+                        if req.min_price <= price <= req.max_price:
+                            products_found.append(f"{store_url}/products/{p['handle']}")
+                            break
         except Exception:
             pass
         return products_found
 
-    tasks = [fetch_store(s) for s in req.stores]
+    tasks = [asyncio.to_thread(fetch_store_sync, s) for s in req.stores]
     results = await asyncio.gather(*tasks)
     flat_list = [url for sublist in results for url in sublist]
     return {"products": list(set(flat_list))}
@@ -646,10 +646,16 @@ async def run_checker(req: CheckerRequest, user: dict = Depends(get_current_user
                 if rawStatus in ["CHARGED", "LIVE", "APPROVED"]:
                     is_approved = True
                     
+        today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        inc_doc = {"total_checked_ccs": 1, f"daily_stats.{today_str}.total": 1}
+        
         if is_approved:
-            await db.users.update_one({"_id": ObjectId(user["_id"])}, {"$inc": {"credits": -1, "total_checked_ccs": 1}})
+            inc_doc["credits"] = -1
+            inc_doc[f"daily_stats.{today_str}.approved"] = 1
         else:
-            await db.users.update_one({"_id": ObjectId(user["_id"])}, {"$inc": {"total_checked_ccs": 1}})
+            inc_doc[f"daily_stats.{today_str}.declined"] = 1
+            
+        await db.users.update_one({"_id": ObjectId(user["_id"])}, {"$inc": inc_doc})
             
         return data
             
