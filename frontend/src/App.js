@@ -180,6 +180,10 @@ const AppLayout = ({ children }) => {
     { id: 'settings', path: '/app/settings', icon: <SettingsIcon className="w-6 h-6 sm:w-5 sm:h-5" />, label: 'Settings' }
   ];
 
+  if (user?.role === 'admin') {
+    navItems.push({ id: 'admin', path: '/admin', icon: <ShieldAlert className="w-6 h-6 sm:w-5 sm:h-5" />, label: 'Admin' });
+  }
+
   return (
     <div className="min-h-screen flex flex-col z-10 relative bg-black">
       <header className="h-16 border-b border-neutral-800/80 bg-black/80 backdrop-blur-md flex items-center justify-between px-4 sm:px-6 sticky top-0 z-40">
@@ -214,7 +218,7 @@ const AppLayout = ({ children }) => {
         {children}
       </main>
 
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-[24rem] sm:max-w-[28rem]">
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-[28rem] sm:max-w-[32rem]">
         <div className="ios-glass rounded-full p-2 flex items-center justify-between shadow-[0_20px_40px_rgba(0,0,0,0.6)]">
           {navItems.map(item => {
             const isActive = location.pathname === item.path;
@@ -444,7 +448,7 @@ const formatCard = (line) => {
     return `${digitsOnly[ccIndex]}|${digitsOnly[ccIndex+1]}|${digitsOnly[ccIndex+2]}|${digitsOnly[ccIndex+3]}`;
   }
   
-  const parts = line.split(/[\/\:\|\,\s]+/);
+  const parts = line.split(/[\/:|, \t]+/);
   if (parts.length >= 4) {
     return `${parts[0].replace(/\D/g, '')}|${parts[1].replace(/\D/g, '')}|${parts[2].replace(/\D/g, '')}|${parts[3].replace(/\D/g, '')}`;
   }
@@ -461,7 +465,7 @@ const CheckerTab = () => {
   
   const [shopifySiteType, setShopifySiteType] = useState("own");
   const [shopifyCc, setShopifyCc] = useState("");
-  
+
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState([]);
   const [stats, setStats] = useState({ approved: 0, declined: 0, errors: 0 });
@@ -470,6 +474,7 @@ const CheckerTab = () => {
   const [shToolsKeyword, setShToolsKeyword] = useState("donation");
   const [shToolsPages, setShToolsPages] = useState("10");
   const [shToolsPrice, setShToolsPrice] = useState("1-10");
+  const [shToolsProxy, setShToolsProxy] = useState("own");
   const [shToolsVerify, setShToolsVerify] = useState(false);
   const [shToolsOutput, setShToolsOutput] = useState([]);
   const [shToolsUrls, setShToolsUrls] = useState([]);
@@ -509,7 +514,7 @@ const CheckerTab = () => {
       
       remainingCards.shift();
       if (activeGateway === 'stripe') setStripeCc(remainingCards.join('\n'));
-      else setShopifyCc(remainingCards.join('\n'));
+      else if (activeGateway === 'shopify') setShopifyCc(remainingCards.join('\n'));
 
       // Fetch BIN Info from backend API
       let binStr = "";
@@ -546,35 +551,20 @@ const CheckerTab = () => {
         let msg = "";
         let price = "";
         
-        if (activeGateway === 'stripe') {
-           if (data.status === true && data.result) {
-             isApproved = data.result.status?.toLowerCase() === "charged" || data.result.status?.toLowerCase() === "live";
-             stat = data.result.status?.toUpperCase() || (isApproved ? "LIVE" : "DECLINED");
-           } else if (data.Status) {
-             const rawStatus = (data.Status || "").toString().toUpperCase();
-             isApproved = rawStatus === "CHARGED" || rawStatus === "LIVE";
-             stat = rawStatus;
-           } else {
-             stat = "UNKNOWN";
-           }
-           msg = JSON.stringify(data);
-           price = data.Price || data.price || "";
+        if (data.status === true && data.result) {
+          isApproved = data.result.status?.toLowerCase() === "charged" || data.result.status?.toLowerCase() === "live";
+          stat = data.result.status?.toUpperCase() || (isApproved ? "LIVE" : "DECLINED");
+          msg = data.result.message || data.result.decline_code || "Processed";
+          price = data.result.price || data.result.amount || "";
+        } else if (data.Status || data.status) {
+          const rawStatus = (data.Status || data.status).toString().toUpperCase();
+          isApproved = rawStatus === "CHARGED" || rawStatus === "LIVE" || rawStatus === "APPROVED";
+          stat = rawStatus;
+          msg = data.Response || data.message || data.result?.message || "Processed";
+          price = data.Price || data.price || data.amount || "";
         } else {
-           if (data.status === true && data.result) {
-             isApproved = data.result.status?.toLowerCase() === "charged" || data.result.status?.toLowerCase() === "live";
-             stat = data.result.status?.toUpperCase() || (isApproved ? "LIVE" : "DECLINED");
-             msg = data.result.message || data.result.decline_code || "Processed";
-             price = data.result.price || data.result.amount || "";
-           } else if (data.Status || data.status) {
-             const rawStatus = (data.Status || data.status).toString().toUpperCase();
-             isApproved = rawStatus === "CHARGED" || rawStatus === "LIVE" || rawStatus === "APPROVED";
-             stat = rawStatus;
-             msg = data.Response || data.message || data.result?.message || "Processed";
-             price = data.Price || data.price || data.amount || "";
-           } else {
-             stat = "UNKNOWN";
-             msg = "Unexpected response format";
-           }
+          stat = "UNKNOWN";
+          msg = JSON.stringify(data);
         }
 
         setResults(prev => prev.map(r => r.id === resultId ? {
@@ -625,7 +615,7 @@ const CheckerTab = () => {
     for (let page = 1; page <= limit; page++) {
       try {
         setShToolsOutput(p => [...p, `Fetching page ${page}...`]);
-        const res = await axios.get(`/api/shopify_tools/stores?keyword=${shToolsKeyword}&page=${page}`);
+        const res = await axios.get(`/api/shopify_tools/stores?keyword=${shToolsKeyword}&page=${page}&proxy_type=${shToolsProxy}`);
         if (res.data.stores && res.data.stores.length > 0) {
           allStores = [...allStores, ...res.data.stores];
           setShToolsOutput(p => [...p, `Page ${page}: found ${res.data.stores.length} stores`]);
@@ -645,7 +635,8 @@ const CheckerTab = () => {
       const prodRes = await axios.post(`/api/shopify_tools/products`, {
         stores: Array.from(new Set(allStores)),
         min_price: min_p,
-        max_price: max_p
+        max_price: max_p,
+        proxy_type: shToolsProxy
       });
       let prods = prodRes.data.products || [];
       setShToolsOutput(p => [...p, `Found ${prods.length} products matching criteria.`]);
@@ -708,7 +699,7 @@ const CheckerTab = () => {
               key={gw.id}
               onClick={() => { if (!running && !shToolsRunning && gw.active) setActiveGateway(gw.id); }}
               disabled={running || shToolsRunning || !gw.active}
-              className={`flex items-center gap-2 py-3 px-5 text-base md:text-sm md:py-2 md:px-4 font-medium rounded-xl transition-all whitespace-nowrap ${
+              className={`flex items-center gap-1.5 py-3 px-5 text-base md:text-sm md:py-2 md:px-4 font-medium rounded-xl transition-all whitespace-nowrap ${
                 activeGateway === gw.id 
                   ? 'bg-neutral-800 text-white shadow-sm scale-[1.02]' 
                   : gw.active && !running && !shToolsRunning
@@ -818,9 +809,15 @@ const CheckerTab = () => {
 
                 {activeGateway === 'shopify_tools' && (
                   <motion.form key="shopify_tools" initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} onSubmit={handleStartScraper} className="space-y-6">
-                    <div className="flex items-center gap-3 mb-6">
-                      <div className="p-2 bg-blue-500/10 rounded-2xl"><Search className="w-6 h-6 text-blue-400"/></div>
-                      <h2 className="text-xl font-medium text-neutral-200">Shopify Product Scraper</h2>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-500/10 rounded-2xl"><Search className="w-6 h-6 text-blue-400"/></div>
+                        <h2 className="text-xl font-medium text-neutral-200">Shopify Product Scraper</h2>
+                      </div>
+                      <div className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 rounded-xl p-1">
+                        <button type="button" onClick={() => setShToolsProxy("own")} className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${shToolsProxy === "own" ? "bg-neutral-800 text-white shadow-sm" : "text-neutral-500 hover:text-neutral-300"}`}>Own Proxies</button>
+                        <button type="button" onClick={() => setShToolsProxy("default")} className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${shToolsProxy === "default" ? "bg-neutral-800 text-white shadow-sm" : "text-neutral-500 hover:text-neutral-300"}`}>Admin Proxies</button>
+                      </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="space-y-2">
@@ -844,9 +841,12 @@ const CheckerTab = () => {
                         </select>
                       </div>
                     </div>
-                    <label className="flex items-center gap-3 cursor-pointer">
+                    <label className="flex items-center gap-3 cursor-pointer bg-white/[0.02] p-4 rounded-2xl border border-white/5">
                       <input type="checkbox" checked={shToolsVerify} onChange={e => setShToolsVerify(e.target.checked)} disabled={shToolsRunning} className="w-5 h-5 rounded border-neutral-800 bg-neutral-900" />
-                      <span className="text-sm font-medium text-neutral-300">Verify URLs (Filters dead checkouts via Shopify API)</span>
+                      <div>
+                        <span className="text-sm font-medium text-neutral-200 block">Verify URLs before saving</span>
+                        <span className="text-xs text-neutral-500">Filters dead checkouts automatically.</span>
+                      </div>
                     </label>
                     <Button type="submit" disabled={shToolsRunning} className="w-full gap-2 mt-2">
                       {shToolsRunning ? <><div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div> Scraping & Analyzing...</> : <><Search className="w-4 h-4" /> Start Scraping</>}
@@ -956,6 +956,7 @@ const AdminDashboard = () => {
   const { user, checkAuth } = useAuth();
   const [globalSk, setGlobalSk] = useState("");
   const [globalUrls, setGlobalUrls] = useState("");
+  const [globalProxies, setGlobalProxies] = useState("");
 
   const fetchUsers = async () => {
     try { const { data } = await axios.get("/api/admin/users"); setUsers(data); } catch (e) {} finally { setLoading(false); }
@@ -966,6 +967,7 @@ const AdminDashboard = () => {
     if (user) {
       setGlobalSk(user.stripe_sk || "");
       setGlobalUrls(user.shopify_urls || "");
+      setGlobalProxies(user.global_proxies || "");
     }
   }, [user]);
 
@@ -980,7 +982,7 @@ const AdminDashboard = () => {
   const handleSaveGlobal = async (e) => {
     e.preventDefault();
     try {
-      await axios.patch("/api/auth/me", { stripe_sk: globalSk, shopify_urls: globalUrls });
+      await axios.patch("/api/auth/me", { stripe_sk: globalSk, shopify_urls: globalUrls, global_proxies: globalProxies });
       toast.success("Global config updated");
       checkAuth();
     } catch (e) { toast.error(formatApiError(e.response?.data?.detail)); }
@@ -1012,6 +1014,10 @@ const AdminDashboard = () => {
           <div className="space-y-2">
             <label className="text-xs font-medium text-neutral-400">Global Shopify URLs (For Inbuilt Site)</label>
             <Textarea value={globalUrls} onChange={e => setGlobalUrls(e.target.value)} placeholder="https://store.com/products/1" className="min-h-[100px]" />
+          </div>
+          <div className="space-y-2 md:col-span-2">
+            <label className="text-xs font-medium text-neutral-400">Global Shopify Scraper Proxies (For Default Proxies)</label>
+            <Textarea value={globalProxies} onChange={e => setGlobalProxies(e.target.value)} placeholder="ip:port:user:pass" className="min-h-[100px]" />
           </div>
           <div className="md:col-span-2">
             <Button type="submit">Save Global Config</Button>
@@ -1075,22 +1081,11 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
 
   if (loading) return <div className="min-h-screen bg-black flex items-center justify-center"><div className="w-6 h-6 border-2 border-neutral-800 border-t-neutral-200 rounded-full animate-spin"></div></div>;
   if (!user) return <Navigate to="/login" replace />;
-  if (adminOnly && user.role !== "admin") return <Navigate to="/app/home" replace />;
   if (transitioning) return <VoidTransition onComplete={() => { setTransitioning(false); setJustLoggedIn(false); }} />;
 
   return (
     <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="w-full h-full">
-      {adminOnly ? (
-        <div className="min-h-screen flex flex-col z-10 relative bg-black">
-          <header className="h-16 border-b border-neutral-800/80 bg-black/90 px-6 flex items-center justify-between sticky top-0 z-40">
-            <div className="font-semibold text-white">VeLuX Admin Panel</div>
-            <Button variant="outline" size="sm" onClick={() => { axios.post("/api/auth/logout"); window.location.href = "/"; }}>Logout</Button>
-          </header>
-          <main className="flex-1 p-6 lg:p-10">{children}</main>
-        </div>
-      ) : (
-        <AppLayout>{children}</AppLayout>
-      )}
+      <AppLayout>{children}</AppLayout>
     </motion.div>
   );
 };

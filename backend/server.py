@@ -17,6 +17,7 @@ import asyncio
 import urllib3
 from bs4 import BeautifulSoup
 import httpx
+import random
 
 urllib3.disable_warnings()
 
@@ -44,11 +45,9 @@ async def startup_db_client():
     client = AsyncIOMotorClient(MONGO_URL)
     db = client[DB_NAME]
     
-    # Indexes
     await db.users.create_index("username", unique=True)
     await db.login_attempts.create_index("identifier")
     
-    # Admin seeding
     admin_user = os.environ.get("ADMIN_USERNAME", "SHORIEN")
     admin_pass = os.environ.get("ADMIN_PASSWORD", "Xiron696@")
     existing = await db.users.find_one({"username": admin_user})
@@ -76,7 +75,6 @@ async def shutdown_db_client():
     if client:
         client.close()
 
-# Auth Helpers
 def hash_password(password: str) -> str:
     salt = bcrypt.gensalt()
     return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
@@ -123,7 +121,6 @@ async def require_admin(user: dict = Depends(get_current_user)) -> dict:
         raise HTTPException(status_code=403, detail="Admin privileges required")
     return user
 
-# Schemas
 class LoginRequest(BaseModel):
     username: str
     password: str
@@ -143,12 +140,12 @@ class UserUpdate(BaseModel):
     telegram_id: Optional[str] = None
     shopify_urls: Optional[str] = None
     stripe_sk: Optional[str] = None
+    global_proxies: Optional[str] = None
     total_checked_ccs: Optional[int] = None
 
 class ProxyCheckRequest(BaseModel):
     proxies: str
 
-# Routes
 @app.post("/api/auth/login")
 async def login(req: LoginRequest, request: Request, response: Response):
     ip = request.client.host
@@ -193,6 +190,8 @@ async def update_me(req: UserUpdate, user: dict = Depends(get_current_user)):
         update_data["shopify_urls"] = req.shopify_urls
     if req.stripe_sk is not None:
         update_data["stripe_sk"] = req.stripe_sk
+    if req.global_proxies is not None:
+        update_data["global_proxies"] = req.global_proxies
         
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
@@ -209,7 +208,6 @@ async def logout(response: Response):
     response.delete_cookie("refresh_token", path="/", secure=True, httponly=True, samesite="none")
     return {"message": "Logged out successfully"}
 
-# Admin Routes
 @app.get("/api/admin/users")
 async def list_users(admin: dict = Depends(require_admin)):
     cursor = db.users.find({}, {"password_hash": 0}).sort("created_at", -1)
@@ -261,7 +259,6 @@ async def delete_user(user_id: str, admin: dict = Depends(require_admin)):
     await db.users.delete_one({"_id": ObjectId(user_id)})
     return {"message": "User deleted"}
 
-# BIN API
 def fetch_bin_info(bin_code: str):
     try:
         res = requests.get(f"https://lookup.binlist.net/{bin_code}", timeout=5.0)
@@ -276,7 +273,6 @@ async def get_bin_info(bin_code: str, user: dict = Depends(get_current_user)):
         return data
     return {"error": "Not Found"}
 
-# Proxy Routes
 def test_proxy_sync(raw_proxy: str, proxy_url: str) -> bool:
     proxies = {"http": proxy_url, "https": proxy_url}
     try:
@@ -362,13 +358,30 @@ async def check_proxies(req: ProxyCheckRequest, user: dict = Depends(get_current
         "saved": successful
     }
 
-# SHOPIFY TOOLS ROUTES
 @app.get("/api/shopify_tools/stores")
-async def get_stores(keyword: str, page: int, user: dict = Depends(get_current_user)):
+async def get_stores(keyword: str, page: int, proxy_type: str = "own", user: dict = Depends(get_current_user)):
+    proxy_url = None
+    if proxy_type == "default":
+        admin = await db.users.find_one({"role": "admin"})
+        gp = admin.get("global_proxies", "") if admin else ""
+        lines = [p.strip() for p in gp.split("\n") if p.strip()]
+        if lines:
+            raw = random.choice(lines)
+            parts = raw.split(":")
+            if "://" in raw: proxy_url = raw
+            elif len(parts) >= 4: proxy_url = f"http://{parts[2]}:{':'.join(parts[3:])}@{parts[0]}:{parts[1]}"
+            elif len(parts) == 2: proxy_url = f"http://{parts[0]}:{parts[1]}"
+    else:
+        cursor = db.proxies.find({"user_id": str(user["_id"])})
+        proxies = await cursor.to_list(length=100)
+        if proxies:
+            proxy_url = random.choice(proxies)["proxy_url"]
+
     url = f"https://shopifyspy.com/stores/niches/{keyword}/?page={page}&search_niche={keyword}&orderBy=sw_rank"
     try:
         def fetch():
-            res = requests.get(url, timeout=15)
+            proxies_dict = {"http": proxy_url, "https": proxy_url} if proxy_url else None
+            res = requests.get(url, timeout=15, proxies=proxies_dict, verify=False)
             if res.status_code != 200:
                 return []
             soup = BeautifulSoup(res.text, "html.parser")
@@ -392,14 +405,32 @@ class ProductsRequest(BaseModel):
     stores: List[str]
     min_price: float
     max_price: float
+    proxy_type: str = "own"
 
 @app.post("/api/shopify_tools/products")
 async def get_products(req: ProductsRequest, user: dict = Depends(get_current_user)):
+    proxy_url = None
+    if req.proxy_type == "default":
+        admin = await db.users.find_one({"role": "admin"})
+        gp = admin.get("global_proxies", "") if admin else ""
+        lines = [p.strip() for p in gp.split("\n") if p.strip()]
+        if lines:
+            raw = random.choice(lines)
+            parts = raw.split(":")
+            if "://" in raw: proxy_url = raw
+            elif len(parts) >= 4: proxy_url = f"http://{parts[2]}:{':'.join(parts[3:])}@{parts[0]}:{parts[1]}"
+            elif len(parts) == 2: proxy_url = f"http://{parts[0]}:{parts[1]}"
+    else:
+        cursor = db.proxies.find({"user_id": str(user["_id"])})
+        proxies = await cursor.to_list(length=100)
+        if proxies:
+            proxy_url = random.choice(proxies)["proxy_url"]
+
     async def fetch_store(store_url):
         products_found = []
         try:
             url = f"{store_url}/products.json?limit=250"
-            async with httpx.AsyncClient(timeout=10.0, verify=False) as client:
+            async with httpx.AsyncClient(proxy=proxy_url, timeout=15.0, verify=False) as client:
                 res = await client.get(url, follow_redirects=True)
                 if res.status_code == 200:
                     data = res.json()
@@ -418,16 +449,13 @@ async def get_products(req: ProductsRequest, user: dict = Depends(get_current_us
     flat_list = [url for sublist in results for url in sublist]
     return {"products": list(set(flat_list))}
 
-# CHECKER ENGINE
 class CheckerRequest(BaseModel):
     gateway: str
     card: str
-    sk_type: Optional[str] = None # "sk_based" or "non_sk"
+    sk_type: Optional[str] = None
     sk: Optional[str] = None
-    site_type: Optional[str] = None # "own" or "inbuilt"
+    site_type: Optional[str] = None
     product_url: Optional[str] = None
-
-import random
 
 @app.post("/api/checker/run")
 async def run_checker(req: CheckerRequest, user: dict = Depends(get_current_user)):
@@ -459,8 +487,6 @@ async def run_checker(req: CheckerRequest, user: dict = Depends(get_current_user
             
         elif req.gateway == "shopify":
             target_urls = ""
-            
-            # If product_url is provided (e.g. via Shopify Tools verifier) we use it directly
             if req.product_url:
                 product_url = req.product_url
             else:
