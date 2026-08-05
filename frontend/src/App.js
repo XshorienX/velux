@@ -672,22 +672,20 @@ const CheckerTab = () => {
     let allStores = [];
     setShToolsOutput(p => [...p, `Starting scraping for keyword '${shToolsKeyword}' up to page ${limit}...`]);
     
-    for (let page = 1; page <= limit; page++) {
-      try {
-        setShToolsOutput(p => [...p, `Fetching page ${page}...`]);
-        const res = await axios.get(`/api/shopify_tools/stores?keyword=${shToolsKeyword}&page=${page}&proxy_type=${shToolsProxy}`);
-        if (res.data.stores && res.data.stores.length > 0) {
-          allStores = [...allStores, ...res.data.stores];
-          setShToolsOutput(p => [...p, `Page ${page}: found ${res.data.stores.length} stores`]);
-        }
-      } catch (e) {
-        setShToolsOutput(p => [...p, `Page ${page}: error occurred`]);
+    try:
+      setShToolsOutput(p => [...p, `Fetching ${limit} pages concurrently (10 threads)...`]);
+      const res = await axios.get(`/api/shopify_tools/stores?keyword=${shToolsKeyword}&pages=${limit}&proxy_type=${shToolsProxy}`);
+      if (res.data.stores && res.data.stores.length > 0) {
+        allStores = res.data.stores;
       }
+      setShToolsOutput(p => [...p, `Total unique stores collected: ${allStores.length}`]);
+    } catch (e) {
+      setShToolsOutput(p => [...p, `Error occurred while fetching pages`]);
     }
-    setShToolsOutput(p => [...p, `Total unique stores collected: ${new Set(allStores).size}`]);
+    
     let [min_p, max_p] = shToolsPrice.split('-').map(Number);
     if (!max_p) max_p = 10;
-    setShToolsOutput(p => [...p, `Extracting products in price range $${min_p} - $${max_p}...`]);
+    setShToolsOutput(p => [...p, `Extracting products in price range $${min_p} - $${max_p} (40 threads)...`]);
     try {
       const prodRes = await axios.post(`/api/shopify_tools/products`, {
         stores: Array.from(new Set(allStores)), min_price: min_p, max_price: max_p, proxy_type: shToolsProxy
@@ -696,20 +694,34 @@ const CheckerTab = () => {
       setShToolsOutput(p => [...p, `Found ${prods.length} products matching criteria.`]);
       
       if (shToolsVerify && prods.length > 0) {
-        setShToolsOutput(p => [...p, `Verifying ${prods.length} URLs via checkout API...`]);
+        setShToolsOutput(p => [...p, `Verifying ${prods.length} URLs via checkout API (15 threads)...`]);
         let verified = [];
-        for (const p_url of prods) {
-          try {
-            const vRes = await axios.post("/api/checker/run", {
-              gateway: 'shopify', card: '4118101051591193|02|30|646', site_type: 'own', product_url: p_url, no_proxy: true
-            });
-            const vMsg = (vRes.data.message || vRes.data.Response || JSON.stringify(vRes.data)).toUpperCase();
-            if (vMsg.includes("CAPTCHA_REQUIRED") || vMsg.includes("DECLINE")) {
-              verified.push(p_url);
-              setShToolsOutput(p => [...p, `[VALID] ${p_url}`]);
-            }
-          } catch(e) {}
-        }
+        let completed = 0;
+        let verifyIndex = 0;
+        
+        const verifyWorker = async () => {
+          while (verifyIndex < prods.length) {
+            const currentIndex = verifyIndex++;
+            const p_url = prods[currentIndex];
+            try {
+              const vRes = await axios.post("/api/checker/run", {
+                gateway: 'shopify', card: '4118101051591193|02|30|646', site_type: 'own', product_url: p_url, no_proxy: true
+              });
+              const vMsg = (vRes.data.message || vRes.data.Response || JSON.stringify(vRes.data)).toUpperCase();
+              if (vMsg.includes("CAPTCHA_REQUIRED") || vMsg.includes("DECLINE")) {
+                verified.push(p_url);
+                setShToolsOutput(p => [...p, `[VALID] ${p_url}`]);
+              }
+            } catch(e) {}
+            completed++;
+            if (completed % 10 === 0) setShToolsOutput(p => [...p, `Checked ${completed}/${prods.length}...`]);
+          }
+        };
+
+        const maxWorkers = Math.min(15, prods.length);
+        const workers = Array.from({ length: maxWorkers }, () => verifyWorker());
+        await Promise.all(workers);
+        
         prods = verified;
         setShToolsOutput(p => [...p, `Verification complete. ${prods.length} valid URLs kept.`]);
       }

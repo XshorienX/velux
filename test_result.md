@@ -140,6 +140,30 @@ backend:
         - working: true
           agent: "testing"
           comment: "Verified error masking in /api/checker/run endpoint (lines 665-669). Created unit tests that simulate exceptions containing 'api.barryxapi.xyz'. All tests passed (9/9): (1) Exceptions with 'api.barryxapi.xyz' return masked 'Api Error: Gateway connection timeout or unavailable.' message, (2) URL is NOT exposed in error messages, (3) Other exceptions correctly use 'Engine Error' prefix, (4) Timeout errors with API URL are properly masked. Test file: /app/test_error_masking_unit.py"
+  
+  - task: "/api/shopify_tools/stores endpoint accepts 'pages' parameter and uses asyncio.Semaphore(10)"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "Verified /api/shopify_tools/stores endpoint (lines 474-530). All tests passed (10/10): (1) Endpoint accepts 'pages' parameter with default value of 1, (2) Successfully tested with pages=1 (19 stores), pages=2 (36 stores), and pages=5 (91 stores), (3) Code verification confirms asyncio.Semaphore(10) is used at line 517, (4) Semaphore is properly used with 'async with sem' pattern (lines 518-520), (5) Pages parameter is correctly used in range(1, pages+1) at line 523. Test file: /app/shopify_tools_test.py"
+  
+  - task: "/api/shopify_tools/products endpoint uses asyncio.Semaphore(40) to limit thread creation"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "Verified /api/shopify_tools/products endpoint (lines 538-583). All tests passed (6/6): (1) Code verification confirms asyncio.Semaphore(40) is used at line 575, (2) Semaphore is properly used with 'async with sem' pattern (lines 576-578), (3) Uses asyncio.to_thread to limit thread creation when extracting products from stores, (4) Endpoint is functional and successfully returns products (tested with 2 stores, returned 170 products). Test file: /app/shopify_tools_test.py"
 
 frontend:
   - task: "No frontend testing required"
@@ -157,12 +181,13 @@ frontend:
 metadata:
   created_by: "testing_agent"
   version: "1.0"
-  test_sequence: 2
+  test_sequence: 3
   run_ui: false
 
 test_plan:
   current_focus:
-    - "Error masking in /api/checker/run for api.barryxapi.xyz exceptions"
+    - "/api/shopify_tools/stores endpoint accepts 'pages' parameter and uses asyncio.Semaphore(10)"
+    - "/api/shopify_tools/products endpoint uses asyncio.Semaphore(40) to limit thread creation"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -172,3 +197,5 @@ agent_communication:
       message: "Completed comprehensive testing of admin user creation and patch endpoints for 'plan' field handling. All tests passed (10/10). Both endpoints correctly handle the 'plan' field - creation endpoint accepts and stores plan values, patch endpoint updates plan values, and all changes persist correctly in the database. Test file created at /app/backend_test.py for future regression testing."
     - agent: "testing"
       message: "Completed verification of error masking in /api/checker/run endpoint. Created unit tests to simulate exceptions containing 'api.barryxapi.xyz'. All tests passed (9/9). The implementation correctly masks API URL errors with 'Api Error: Gateway connection timeout or unavailable.' message, preventing URL exposure. Other exceptions correctly use 'Engine Error' prefix. Security feature is working as expected. Test file: /app/test_error_masking_unit.py"
+    - agent: "testing"
+      message: "Completed comprehensive testing of Shopify Tools endpoints. All tests passed (16/16). Verified: (1) /api/shopify_tools/stores endpoint accepts 'pages' parameter and correctly uses asyncio.Semaphore(10) for concurrency control - tested with pages=1,2,5 returning 19,36,91 stores respectively. (2) /api/shopify_tools/products endpoint uses asyncio.Semaphore(40) to limit thread creation when extracting products - verified through code inspection and functional testing. Both endpoints are working correctly with proper concurrency controls. Test file: /app/shopify_tools_test.py"

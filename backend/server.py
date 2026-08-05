@@ -472,7 +472,7 @@ async def check_proxies(req: ProxyCheckRequest, user: dict = Depends(get_current
     }
 
 @app.get("/api/shopify_tools/stores")
-async def get_stores(keyword: str, page: int, proxy_type: str = "own", user: dict = Depends(get_current_user)):
+async def get_stores(keyword: str, pages: int = 1, proxy_type: str = "own", user: dict = Depends(get_current_user)):
     proxy_url = None
     if proxy_type == "default":
         admin = await db.users.find_one({"role": "admin"})
@@ -490,27 +490,42 @@ async def get_stores(keyword: str, page: int, proxy_type: str = "own", user: dic
         if proxies:
             proxy_url = random.choice(proxies)["proxy_url"]
 
-    url = f"https://shopifyspy.com/stores/niches/{keyword}/?page={page}&search_niche={keyword}&orderBy=sw_rank"
+    async def fetch_page(page_num):
+        url = f"https://shopifyspy.com/stores/niches/{keyword}/?page={page_num}&search_niche={keyword}&orderBy=sw_rank"
+        try:
+            def fetch():
+                proxies_dict = {"http": proxy_url, "https": proxy_url} if proxy_url else None
+                res = requests.get(url, timeout=15, proxies=proxies_dict, verify=False)
+                if res.status_code != 200:
+                    return []
+                soup = BeautifulSoup(res.text, "html.parser")
+                table = soup.select_one("table.table.table-hover")
+                if not table: return []
+                links = []
+                for a in table.find_all("a"):
+                    text = a.get_text(strip=True)
+                    if text and "." in text:
+                        if not text.startswith("http"):
+                            text = "https://" + text
+                        links.append(text)
+                return list(set(links))
+            
+            return await asyncio.to_thread(fetch)
+        except Exception:
+            return []
+
+    sem = asyncio.Semaphore(10)
+    async def sem_fetch(p):
+        async with sem:
+            return await fetch_page(p)
+
     try:
-        def fetch():
-            proxies_dict = {"http": proxy_url, "https": proxy_url} if proxy_url else None
-            res = requests.get(url, timeout=15, proxies=proxies_dict, verify=False)
-            if res.status_code != 200:
-                return []
-            soup = BeautifulSoup(res.text, "html.parser")
-            table = soup.select_one("table.table.table-hover")
-            if not table: return []
-            links = []
-            for a in table.find_all("a"):
-                text = a.get_text(strip=True)
-                if text and "." in text:
-                    if not text.startswith("http"):
-                        text = "https://" + text
-                    links.append(text)
-            return list(set(links))
-        
-        stores = await asyncio.to_thread(fetch)
-        return {"stores": stores}
+        tasks = [sem_fetch(p) for p in range(1, pages + 1)]
+        results = await asyncio.gather(*tasks)
+        all_stores = []
+        for r in results:
+            all_stores.extend(r)
+        return {"stores": list(set(all_stores))}
     except Exception as e:
         return {"stores": [], "error": str(e)}
 
@@ -557,7 +572,12 @@ async def get_products(req: ProductsRequest, user: dict = Depends(get_current_us
             pass
         return products_found
 
-    tasks = [asyncio.to_thread(fetch_store_sync, s) for s in req.stores]
+    sem = asyncio.Semaphore(40)
+    async def sem_fetch_store(s):
+        async with sem:
+            return await asyncio.to_thread(fetch_store_sync, s)
+
+    tasks = [sem_fetch_store(s) for s in req.stores]
     results = await asyncio.gather(*tasks)
     flat_list = [url for sublist in results for url in sublist]
     return {"products": list(set(flat_list))}
