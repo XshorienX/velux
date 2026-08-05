@@ -672,7 +672,7 @@ const CheckerTab = () => {
     let allStores = [];
     setShToolsOutput(p => [...p, `Starting scraping for keyword '${shToolsKeyword}' up to page ${limit}...`]);
     
-    try:
+    try {
       setShToolsOutput(p => [...p, `Fetching ${limit} pages concurrently (10 threads)...`]);
       const res = await axios.get(`/api/shopify_tools/stores?keyword=${shToolsKeyword}&pages=${limit}&proxy_type=${shToolsProxy}`);
       if (res.data.stores && res.data.stores.length > 0) {

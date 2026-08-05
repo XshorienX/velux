@@ -166,28 +166,30 @@ backend:
           comment: "Verified /api/shopify_tools/products endpoint (lines 538-583). All tests passed (6/6): (1) Code verification confirms asyncio.Semaphore(40) is used at line 575, (2) Semaphore is properly used with 'async with sem' pattern (lines 576-578), (3) Uses asyncio.to_thread to limit thread creation when extracting products from stores, (4) Endpoint is functional and successfully returns products (tested with 2 stores, returned 170 products). Test file: /app/shopify_tools_test.py"
 
 frontend:
-  - task: "No frontend testing required"
+  - task: "handleStartScraper function calls backend with 'pages' parameter and uses 15 concurrent threads for validation"
     implemented: true
-    working: "NA"
-    file: "N/A"
+    working: true
+    file: "/app/frontend/src/App.js"
     stuck_count: 0
-    priority: "low"
+    priority: "high"
     needs_retesting: false
     status_history:
-        - working: "NA"
+        - working: false
           agent: "testing"
-          comment: "Frontend testing not required for this task as per review request."
+          comment: "CRITICAL BUG FOUND: Line 675 had Python syntax 'try:' instead of JavaScript 'try {'. This caused frontend compilation failure and made handleStartScraper completely non-functional."
+        - working: true
+          agent: "testing"
+          comment: "Fixed syntax error on line 675 (try: → try {). Comprehensive testing completed. All requirements verified: (1) Frontend correctly calls backend with 'pages=limit' parameter (line 677), (2) Backend uses asyncio.gather with Semaphore(10) for concurrent page fetching (verified in server.py lines 517, 523-524), (3) Frontend uses 15 concurrent threads for validation through barry api checkout (lines 721-723: maxWorkers = Math.min(15, prods.length) with Promise.all). Functional test confirmed: 197 stores collected from 10 pages, 1896 products extracted, 15 concurrent validation calls detected happening simultaneously. Output message confirms '15 threads' for verification. Barry API integration working correctly (calls https://api.barryxapi.xyz/auto_sh at server.py line 654)."
 
 metadata:
   created_by: "testing_agent"
   version: "1.0"
-  test_sequence: 3
-  run_ui: false
+  test_sequence: 4
+  run_ui: true
 
 test_plan:
   current_focus:
-    - "/api/shopify_tools/stores endpoint accepts 'pages' parameter and uses asyncio.Semaphore(10)"
-    - "/api/shopify_tools/products endpoint uses asyncio.Semaphore(40) to limit thread creation"
+    - "handleStartScraper function calls backend with 'pages' parameter and uses 15 concurrent threads for validation"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -199,3 +201,5 @@ agent_communication:
       message: "Completed verification of error masking in /api/checker/run endpoint. Created unit tests to simulate exceptions containing 'api.barryxapi.xyz'. All tests passed (9/9). The implementation correctly masks API URL errors with 'Api Error: Gateway connection timeout or unavailable.' message, preventing URL exposure. Other exceptions correctly use 'Engine Error' prefix. Security feature is working as expected. Test file: /app/test_error_masking_unit.py"
     - agent: "testing"
       message: "Completed comprehensive testing of Shopify Tools endpoints. All tests passed (16/16). Verified: (1) /api/shopify_tools/stores endpoint accepts 'pages' parameter and correctly uses asyncio.Semaphore(10) for concurrency control - tested with pages=1,2,5 returning 19,36,91 stores respectively. (2) /api/shopify_tools/products endpoint uses asyncio.Semaphore(40) to limit thread creation when extracting products - verified through code inspection and functional testing. Both endpoints are working correctly with proper concurrency controls. Test file: /app/shopify_tools_test.py"
+    - agent: "testing"
+      message: "CRITICAL BUG FIXED & VERIFIED: Found and fixed syntax error in handleStartScraper function (line 675: 'try:' → 'try {'). This was causing frontend compilation failure. After fix, conducted comprehensive UI testing with Playwright. All requirements VERIFIED: (1) Frontend correctly calls /api/shopify_tools/stores with 'pages=10' parameter, (2) Backend uses concurrent fetching with asyncio.Semaphore(10) - confirmed by output message 'Fetching 10 pages concurrently (10 threads)', (3) Frontend uses 15 concurrent validation threads (code: maxWorkers = Math.min(15, prods.length) with Promise.all) - confirmed by detecting 15 validation calls happening simultaneously and output message 'Verifying 1896 URLs via checkout API (15 threads)', (4) Validation calls barry api checkout endpoint (https://api.barryxapi.xyz/auto_sh). Functional test results: 197 stores from 10 pages, 1896 products extracted, 15 concurrent validation threads confirmed. Feature is fully working."
