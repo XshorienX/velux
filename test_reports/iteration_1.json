@@ -10,7 +10,7 @@
     {
       "area": "Frontend routing / post-login navigation",
       "issue": "After successful login the app stays on /login and does not redirect to /dashboard or trigger the void transition. The Login component (App.js ~L94-106) only calls setUser + setJustLoggedIn without navigating, and the /login route (App.js ~L485) has no guard to redirect authenticated users. This makes VoidTransition, AdminDashboard, and all downstream flows unreachable via the UI.",
-      "evidence": "Playwright test: POST /api/auth/login -> 200, access_token/refresh_token cookies present in context, yet page.url remains https://velux-proxy-api.preview.emergentagent.com/login and body still shows the login form ('VELUX / ULTIMATE CHECKER PROTOCOL / USERNAME / PASSWORD / INITIALIZE SEQUENCE') even after 8s wait.",
+      "evidence": "Playwright test: POST /api/auth/login -> 200, access_token/refresh_token cookies present in context, yet page.url remains https://render-ready-4.preview.emergentagent.com/login and body still shows the login form ('VELUX / ULTIMATE CHECKER PROTOCOL / USERNAME / PASSWORD / INITIALIZE SEQUENCE') even after 8s wait.",
       "priority": "HIGH"
     },
     {

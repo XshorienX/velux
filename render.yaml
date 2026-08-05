@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: app-backend
+    env: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: MONGO_URL
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: PYTHON_VERSION
+        value: 3.11.0
+
+  - type: static
+    name: app-frontend
+    rootDir: frontend
+    buildCommand: yarn install && yarn build
+    publishPath: build
+    envVars:
+      - key: REACT_APP_BACKEND_URL
+        sync: false
+      - key: NODE_VERSION
+        value: 20.0.0
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

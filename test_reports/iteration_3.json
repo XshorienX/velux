@@ -11,8 +11,8 @@
     },
     {
       "area": "integration",
-      "issue": "Entire public API https://velux-proxy-api.preview.emergentagent.com/api/* returns 502 as a consequence of the backend syntax error. No auth, admin, proxies, or checker endpoint is reachable.",
-      "evidence": "curl -s https://velux-proxy-api.preview.emergentagent.com/api/auth/login -> Cloudflare 502 Bad gateway HTML.",
+      "issue": "Entire public API https://render-ready-4.preview.emergentagent.com/api/* returns 502 as a consequence of the backend syntax error. No auth, admin, proxies, or checker endpoint is reachable.",
+      "evidence": "curl -s https://render-ready-4.preview.emergentagent.com/api/auth/login -> Cloudflare 502 Bad gateway HTML.",
       "priority": "HIGH"
     }
   ],
