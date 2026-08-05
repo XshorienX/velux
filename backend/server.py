@@ -18,6 +18,7 @@ import urllib3
 from bs4 import BeautifulSoup
 import httpx
 import random
+import string
 
 urllib3.disable_warnings()
 
@@ -47,6 +48,7 @@ async def startup_db_client():
     
     await db.users.create_index("username", unique=True)
     await db.login_attempts.create_index("identifier")
+    await db.redeem_codes.create_index("code", unique=True)
     
     admin_user = os.environ.get("ADMIN_USERNAME", "SHORIEN")
     admin_pass = os.environ.get("ADMIN_PASSWORD", "Xiron696@")
@@ -59,8 +61,9 @@ async def startup_db_client():
             "password_hash": hashed,
             "role": "admin",
             "status": "active",
+            "plan": "admin",
             "credits": 999999,
-            "limits": "unlimited",
+            "last_daily_reset": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
             "total_checked_ccs": 0,
             "created_at": datetime.now(timezone.utc)
         })
@@ -108,6 +111,30 @@ async def get_current_user(request: Request) -> dict:
         if user.get("status") == "banned":
             raise HTTPException(status_code=403, detail="Account is banned")
             
+        # Handle daily reset and premium expiration
+        today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        needs_update = False
+        update_doc = {}
+        
+        if user.get("plan") == "premium" and user.get("premium_until"):
+            if datetime.now(timezone.utc) > user["premium_until"].replace(tzinfo=timezone.utc):
+                user["plan"] = "free"
+                update_doc["plan"] = "free"
+                needs_update = True
+                
+        if user.get("last_daily_reset") != today_str:
+            daily = 1000 if user.get("plan") == "premium" else 100
+            if user.get("role") == "admin":
+                daily = 999999
+            user["credits"] = daily
+            user["last_daily_reset"] = today_str
+            update_doc["credits"] = daily
+            update_doc["last_daily_reset"] = today_str
+            needs_update = True
+            
+        if needs_update:
+            await db.users.update_one({"_id": ObjectId(user["_id"])}, {"$set": update_doc})
+            
         user["_id"] = str(user["_id"])
         user.pop("password_hash", None)
         return user
@@ -129,22 +156,28 @@ class UserCreate(BaseModel):
     username: str
     password: str
     role: str = "user"
-    credits: int = 0
-    limits: str = "standard"
+    credits: int = 100
+    plan: str = "free"
 
 class UserUpdate(BaseModel):
     status: Optional[str] = None
     credits: Optional[int] = None
-    limits: Optional[str] = None
+    plan: Optional[str] = None
     password: Optional[str] = None
     telegram_id: Optional[str] = None
     shopify_urls: Optional[str] = None
     stripe_sk: Optional[str] = None
     global_proxies: Optional[str] = None
-    total_checked_ccs: Optional[int] = None
 
 class ProxyCheckRequest(BaseModel):
     proxies: str
+
+class RedeemRequest(BaseModel):
+    code: str
+
+class CreateRedeemCodeRequest(BaseModel):
+    type: str # "credits" or "premium"
+    value: int # amount of credits, or days of premium
 
 @app.post("/api/auth/login")
 async def login(req: LoginRequest, request: Request, response: Response):
@@ -171,8 +204,33 @@ async def login(req: LoginRequest, request: Request, response: Response):
     response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=900, path="/")
     response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=True, samesite="none", max_age=604800, path="/")
     
+    # Process daily reset during login as well for immediate updated return
+    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    needs_update = False
+    update_doc = {}
+    
+    if user.get("plan") == "premium" and user.get("premium_until"):
+        if datetime.now(timezone.utc) > user["premium_until"].replace(tzinfo=timezone.utc):
+            user["plan"] = "free"
+            update_doc["plan"] = "free"
+            needs_update = True
+            
+    if user.get("last_daily_reset") != today_str:
+        daily = 1000 if user.get("plan") == "premium" else 100
+        if user.get("role") == "admin":
+            daily = 999999
+        user["credits"] = daily
+        user["last_daily_reset"] = today_str
+        update_doc["credits"] = daily
+        update_doc["last_daily_reset"] = today_str
+        needs_update = True
+        
+    if needs_update:
+        await db.users.update_one({"_id": user["_id"]}, {"$set": update_doc})
+    
     user["_id"] = str(user["_id"])
     user.pop("password_hash", None)
+    user.pop("premium_until", None)
     return {"message": "Logged in successfully", "user": user}
 
 @app.get("/api/auth/me")
@@ -208,6 +266,27 @@ async def logout(response: Response):
     response.delete_cookie("refresh_token", path="/", secure=True, httponly=True, samesite="none")
     return {"message": "Logged out successfully"}
 
+@app.post("/api/redeem")
+async def redeem_code(req: RedeemRequest, user: dict = Depends(get_current_user)):
+    code_doc = await db.redeem_codes.find_one({"code": req.code, "used": False})
+    if not code_doc:
+        raise HTTPException(status_code=400, detail="Invalid or already used redeem code.")
+        
+    await db.redeem_codes.update_one({"_id": code_doc["_id"]}, {"$set": {"used": True, "used_by": user["username"], "used_at": datetime.now(timezone.utc)}})
+    
+    update_doc = {}
+    if code_doc["type"] == "credits":
+        update_doc["$inc"] = {"credits": code_doc["value"]}
+    elif code_doc["type"] == "premium":
+        update_doc["$set"] = {
+            "plan": "premium",
+            "premium_until": datetime.now(timezone.utc) + timedelta(days=code_doc["value"])
+        }
+        
+    await db.users.update_one({"_id": ObjectId(user["_id"])}, update_doc)
+    return {"message": f"Successfully redeemed {code_doc['value']} {'Days of Premium' if code_doc['type']=='premium' else 'Credits'}!"}
+
+# Admin Routes
 @app.get("/api/admin/users")
 async def list_users(admin: dict = Depends(require_admin)):
     cursor = db.users.find({}, {"password_hash": 0}).sort("created_at", -1)
@@ -227,9 +306,10 @@ async def create_user(req: UserCreate, admin: dict = Depends(require_admin)):
         "password_hash": hash_password(req.password),
         "role": req.role,
         "status": "active",
+        "plan": req.plan,
         "credits": req.credits,
-        "limits": req.limits,
         "total_checked_ccs": 0,
+        "last_daily_reset": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
         "created_at": datetime.now(timezone.utc)
     }
     result = await db.users.insert_one(new_user)
@@ -242,7 +322,7 @@ async def update_user(user_id: str, req: UserUpdate, admin: dict = Depends(requi
     update_data = {}
     if req.status is not None: update_data["status"] = req.status
     if req.credits is not None: update_data["credits"] = req.credits
-    if req.limits is not None: update_data["limits"] = req.limits
+    if req.plan is not None: update_data["plan"] = req.plan
     if req.password is not None and req.password.strip(): update_data["password_hash"] = hash_password(req.password)
         
     if not update_data: raise HTTPException(status_code=400, detail="No fields to update")
@@ -258,6 +338,36 @@ async def delete_user(user_id: str, admin: dict = Depends(require_admin)):
         raise HTTPException(status_code=400, detail="Cannot delete your own account")
     await db.users.delete_one({"_id": ObjectId(user_id)})
     return {"message": "User deleted"}
+
+@app.post("/api/admin/redeem_codes")
+async def create_redeem_code(req: CreateRedeemCodeRequest, admin: dict = Depends(require_admin)):
+    code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=12))
+    code = f"VELUX-{code[:4]}-{code[4:8]}-{code[8:]}"
+    
+    doc = {
+        "code": code,
+        "type": req.type,
+        "value": req.value,
+        "used": False,
+        "created_by": admin["username"],
+        "created_at": datetime.now(timezone.utc)
+    }
+    await db.redeem_codes.insert_one(doc)
+    doc["_id"] = str(doc["_id"])
+    return doc
+
+@app.get("/api/admin/redeem_codes")
+async def get_redeem_codes(admin: dict = Depends(require_admin)):
+    cursor = db.redeem_codes.find().sort("created_at", -1)
+    codes = await cursor.to_list(length=100)
+    for c in codes:
+        c["_id"] = str(c["_id"])
+    return codes
+
+@app.delete("/api/admin/redeem_codes/{code_id}")
+async def delete_redeem_code(code_id: str, admin: dict = Depends(require_admin)):
+    await db.redeem_codes.delete_one({"_id": ObjectId(code_id)})
+    return {"message": "Deleted"}
 
 def fetch_bin_info(bin_code: str):
     try:
@@ -460,14 +570,25 @@ class CheckerRequest(BaseModel):
 
 @app.post("/api/checker/run")
 async def run_checker(req: CheckerRequest, user: dict = Depends(get_current_user)):
+    if user.get("credits", 0) <= 0:
+        return {"status": False, "message": "Insufficient credits. Please redeem a code or upgrade plan."}
+        
     proxy_url = ""
     if not req.no_proxy:
         cursor = db.proxies.find({"user_id": str(user["_id"])})
         proxies = await cursor.to_list(length=100)
         if proxies:
             proxy_url = random.choice(proxies)["raw"]
+            
+    # Enforce premium features
+    is_premium_or_admin = user.get("plan") == "premium" or user.get("role") == "admin"
+    if req.gateway == "stripe" and req.sk_type == "non_sk" and not is_premium_or_admin:
+         return {"status": False, "message": "Non-SK based checks are a Premium feature."}
+    if req.gateway == "shopify" and req.site_type == "inbuilt" and not is_premium_or_admin:
+         return {"status": False, "message": "Inbuilt Site checks are a Premium feature."}
         
     try:
+        data = None
         if req.gateway == "stripe":
             target_sk = req.sk
             if req.sk_type == "non_sk":
@@ -483,9 +604,6 @@ async def run_checker(req: CheckerRequest, user: dict = Depends(get_current_user
             url = f"https://api.barryxapi.xyz/skbased?key=BRY-KESNP-TUPWH-JFOT9&card={req.card}&sk={target_sk}&proxy={proxy_url}"
             res = requests.get(url, timeout=20.0, verify=False)
             data = res.json()
-            
-            await db.users.update_one({"_id": ObjectId(user["_id"])}, {"$inc": {"total_checked_ccs": 1}})
-            return data
             
         elif req.gateway == "shopify":
             target_urls = ""
@@ -513,11 +631,27 @@ async def run_checker(req: CheckerRequest, user: dict = Depends(get_current_user
             res = requests.post("https://api.barryxapi.xyz/auto_sh", json=payload, timeout=20.0, verify=False)
             data = res.json()
             
-            await db.users.update_one({"_id": ObjectId(user["_id"])}, {"$inc": {"total_checked_ccs": 1}})
-            return data
-            
         else:
             return {"status": False, "message": "Invalid Gateway"}
+            
+        # Parse Response to check approval and deduct credit
+        is_approved = False
+        if data and isinstance(data, dict):
+            if data.get("result"):
+                stat = str(data["result"].get("status", "")).upper()
+                if stat in ["CHARGED", "LIVE", "APPROVED"]:
+                    is_approved = True
+            elif data.get("Status") or data.get("status"):
+                rawStatus = str(data.get("Status") or data.get("status")).upper()
+                if rawStatus in ["CHARGED", "LIVE", "APPROVED"]:
+                    is_approved = True
+                    
+        if is_approved:
+            await db.users.update_one({"_id": ObjectId(user["_id"])}, {"$inc": {"credits": -1, "total_checked_ccs": 1}})
+        else:
+            await db.users.update_one({"_id": ObjectId(user["_id"])}, {"$inc": {"total_checked_ccs": 1}})
+            
+        return data
             
     except Exception as e:
         return {"status": False, "message": f"Engine Error: {str(e)}"}

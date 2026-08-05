@@ -1,0 +1,30 @@
+{
+  "summary": "BACKEND fully verified for new features (plan levels, redeem codes, credit deduction on approved only, non-SK premium restriction). FRONTEND is COMPLETELY BROKEN due to a ReferenceError: `ProtectedRoute is not defined` in App.js (lines 1150-1154). The routes reference <ProtectedRoute> but no such component is defined/imported in the file, so the entire React tree crashes on load. Every browser test rendered a blank/black page (0 inputs, 0 data-testids) and console reported 'PAGE ERROR: ProtectedRoute is not defined'. Cannot verify any UI feature (Plan Level card, Redeem box on /app/home, threads slider, Non-SK disabled state, Admin Dashboard redeem code creator) until this crash is fixed.",
+  "tested_scope": ["backend", "frontend", "integration"],
+  "passed": [
+    "POST /api/auth/login (SHORIEN admin) -> 200, returns role=admin, plan=admin, credits=999999",
+    "POST /api/admin/users -> 200, created freeuser1 with plan=free, credits=100",
+    "POST /api/admin/redeem_codes {type:credits,value:500} -> 200, returned code VELUX-BO8P-CN4G-QBQB",
+    "POST /api/auth/login (freeuser1) -> 200, plan=free, credits=100",
+    "POST /api/redeem {code:VELUX-...} -> 200 'Successfully redeemed 500 Credits!'",
+    "GET /api/auth/me after redeem -> credits went from 100 to 600 (exact +500 as expected)",
+    "POST /api/checker/run {sk_type:'non_sk'} as free user -> 200 {status:false, message:'Non-SK based checks are a Premium feature.'} (server-side premium gating works)",
+    "Backend restricts inbuilt Shopify site to premium via same code path (verified in server.py)",
+    "Approved-only credit deduction implemented (server.py lines 638-652)"
+  ],
+  "failed": [
+    {
+      "area": "frontend/App.js",
+      "issue": "Fatal ReferenceError: `ProtectedRoute is not defined`. Routes at /login, /admin, /app/home, /app/checker, /app/proxy, /app/settings all reference <ProtectedRoute>...</ProtectedRoute> but the component is never defined or imported. Entire app crashes on mount, page renders empty (root div stays blank).",
+      "evidence": "Console: 'PAGE ERROR: ProtectedRoute is not defined' + 'An error occurred in the <App> component'. Playwright: 0 inputs rendered on /, /login, /app/home. Grep of /app/frontend/src/App.js shows 5 usages of ProtectedRoute (lines 1150-1154) and 0 definitions/imports.",
+      "priority": "HIGH"
+    }
+  ],
+  "action_items": [
+    "Define the missing `ProtectedRoute` component in /app/frontend/src/App.js (or import it). It should read the auth user (context/state), redirect to /login if not authenticated, and honor `adminOnly` prop for /admin. Without this, no UI can render.",
+    "After fix, re-run the UI flow to verify: (1) Plan Level card on /app/home shows FREE/PREMIUM/ADMIN, (2) Redeem code box on /app/home accepts VELUX-... code and increments credits, (3) Admin Dashboard has redeem code creator, (4) Checker uses <input type='range'> slider for threads, (5) Non-SK option is visually disabled for free users."
+  ],
+  "success_rate": {"backend": "100%", "frontend": "0% (crash on load)"},
+  "retest_needed": true,
+  "full_testing_deferred": true
+}

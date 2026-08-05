@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from
 import { Toaster, toast } from "sonner";
 import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
-import { Lock, User, Terminal, ChevronRight, LogOut, Activity, ShieldAlert, Cpu, Plus, CreditCard, ShoppingBag, Code2, Play, Settings as SettingsIcon, Home, Compass, MessageSquare, Globe, Check, Link, Search } from "lucide-react";
+import { Lock, User, Terminal, ChevronRight, LogOut, Activity, ShieldAlert, Cpu, Plus, CreditCard, ShoppingBag, Code2, Play, Settings as SettingsIcon, Home, Compass, MessageSquare, Globe, Check, Link, Search, Gift } from "lucide-react";
 
 axios.defaults.baseURL = process.env.REACT_APP_BACKEND_URL;
 axios.defaults.withCredentials = true;
@@ -245,7 +245,26 @@ const AppLayout = ({ children }) => {
 };
 
 const HomeTab = () => {
-  const { user } = useAuth();
+  const { user, checkAuth } = useAuth();
+  const [redeemCode, setRedeemCode] = useState("");
+  const [redeeming, setRedeeming] = useState(false);
+
+  const handleRedeem = async (e) => {
+    e.preventDefault();
+    if (!redeemCode) return;
+    setRedeeming(true);
+    try {
+      const res = await axios.post("/api/redeem", { code: redeemCode });
+      toast.success(res.data.message);
+      setRedeemCode("");
+      checkAuth();
+    } catch(e) {
+      toast.error(formatApiError(e.response?.data?.detail));
+    } finally {
+      setRedeeming(false);
+    }
+  };
+
   return (
     <div className="max-w-[1200px] mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div>
@@ -253,7 +272,7 @@ const HomeTab = () => {
         <p className="text-neutral-500 mt-1">Welcome back, {user.username}. Here is your system overview.</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <div className="ios-glass-card p-6 rounded-3xl relative overflow-hidden">
           <div className="h-10 w-10 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center mb-4">
             <Activity className="h-5 w-5 text-white" />
@@ -270,7 +289,17 @@ const HomeTab = () => {
           <div className="text-3xl font-mono text-white font-semibold">{user.credits?.toLocaleString() || 0}</div>
         </div>
 
-        <div className="ios-glass-card p-6 rounded-3xl relative overflow-hidden sm:col-span-2 lg:col-span-1">
+        <div className="ios-glass-card p-6 rounded-3xl relative overflow-hidden">
+          <div className="h-10 w-10 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center mb-4">
+            <ShieldAlert className="h-5 w-5 text-white" />
+          </div>
+          <h3 className="font-medium text-neutral-400 mb-1">Plan Level</h3>
+          <div className="text-xl text-white mt-2 font-medium capitalize">
+            {user.plan}
+          </div>
+        </div>
+
+        <div className="ios-glass-card p-6 rounded-3xl relative overflow-hidden">
           <div className="h-10 w-10 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center mb-4">
             <Globe className="h-5 w-5 text-white" />
           </div>
@@ -279,6 +308,21 @@ const HomeTab = () => {
             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div> Operational
           </div>
         </div>
+      </div>
+
+      <div className="ios-glass-card p-8 rounded-3xl grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+         <div>
+            <h2 className="text-xl font-semibold text-white mb-2">Buy Premium Plan</h2>
+            <p className="text-neutral-400 text-sm mb-4">Premium users receive 1000 daily credits, access to Non-SK Based gateway tools, and inbuilt global proxies. Free users are limited to 100 credits daily.</p>
+            <a href="https://t.me/XshorienX" target="_blank" rel="noreferrer" className="text-blue-400 text-sm font-medium hover:text-blue-300">Get Code from Admin @XshorienX &rarr;</a>
+         </div>
+         <form onSubmit={handleRedeem} className="bg-neutral-900/40 border border-neutral-800 p-6 rounded-2xl">
+            <label className="text-xs font-medium text-neutral-400 mb-2 block">Redeem Access Code</label>
+            <div className="flex gap-2">
+               <Input value={redeemCode} onChange={e=>setRedeemCode(e.target.value)} placeholder="VELUX-XXXX-XXXX-XXXX" required disabled={redeeming} />
+               <Button type="submit" disabled={redeeming}>{redeeming ? "..." : "Redeem"}</Button>
+            </div>
+         </form>
       </div>
     </div>
   );
@@ -443,15 +487,9 @@ const ProxyTab = () => {
 const formatCard = (line) => {
   const digitsOnly = line.replace(/\D+/g, ' ').trim().split(' ');
   const ccIndex = digitsOnly.findIndex(part => part.length >= 13 && part.length <= 19);
-  
-  if (ccIndex !== -1 && digitsOnly.length >= ccIndex + 4) {
-    return `${digitsOnly[ccIndex]}|${digitsOnly[ccIndex+1]}|${digitsOnly[ccIndex+2]}|${digitsOnly[ccIndex+3]}`;
-  }
-  
+  if (ccIndex !== -1 && digitsOnly.length >= ccIndex + 4) return `${digitsOnly[ccIndex]}|${digitsOnly[ccIndex+1]}|${digitsOnly[ccIndex+2]}|${digitsOnly[ccIndex+3]}`;
   const parts = line.split(/[\/:|, \t]+/);
-  if (parts.length >= 4) {
-    return `${parts[0].replace(/\D/g, '')}|${parts[1].replace(/\D/g, '')}|${parts[2].replace(/\D/g, '')}|${parts[3].replace(/\D/g, '')}`;
-  }
+  if (parts.length >= 4) return `${parts[0].replace(/\D/g, '')}|${parts[1].replace(/\D/g, '')}|${parts[2].replace(/\D/g, '')}|${parts[3].replace(/\D/g, '')}`;
   return line.trim();
 };
 
@@ -465,13 +503,13 @@ const CheckerTab = () => {
   
   const [shopifySiteType, setShopifySiteType] = useState("own");
   const [shopifyCc, setShopifyCc] = useState("");
-  const [threads, setThreads] = useState("5");
+  
+  const [threads, setThreads] = useState(5);
 
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState([]);
   const [stats, setStats] = useState({ approved: 0, declined: 0, errors: 0 });
 
-  // Shopify Tools State
   const [shToolsKeyword, setShToolsKeyword] = useState("donation");
   const [shToolsPages, setShToolsPages] = useState("10");
   const [shToolsPrice, setShToolsPrice] = useState("1-10");
@@ -484,22 +522,17 @@ const CheckerTab = () => {
   const gateways = [
     { id: 'stripe', name: 'Stripe', icon: <CreditCard className="w-5 h-5 md:w-4 md:h-4"/>, active: true },
     { id: 'shopify', name: 'Shopify', icon: <ShoppingBag className="w-5 h-5 md:w-4 md:h-4"/>, active: true },
-    { id: 'shopify_tools', name: 'Shopify Tools', icon: <Search className="w-5 h-5 md:w-4 md:h-4"/>, active: true },
-    { id: 'paypal', name: 'PayPal', icon: <Globe className="w-5 h-5 md:w-4 md:h-4"/>, active: false, soon: true },
-    { id: 'adyen', name: 'Adyen', icon: <ShieldAlert className="w-5 h-5 md:w-4 md:h-4"/>, active: false, soon: true }
+    { id: 'shopify_tools', name: 'Shopify Tools', icon: <Search className="w-5 h-5 md:w-4 md:h-4"/>, active: true }
   ];
 
   const handleStartChecker = async (e) => {
     e.preventDefault();
+    if (user.credits <= 0) return toast.error("Insufficient credits. Please upgrade your plan or redeem code.");
     
     let rawCards = activeGateway === 'stripe' ? stripeCc : shopifyCc;
     const initialLines = rawCards.split('\n');
     let validCards = [];
-    
-    for (const line of initialLines) {
-      if (line.trim()) validCards.push(formatCard(line));
-    }
-    
+    for (const line of initialLines) if (line.trim()) validCards.push(formatCard(line));
     if (validCards.length === 0) return toast.error("No valid cards provided.");
 
     setRunning(true);
@@ -529,14 +562,7 @@ const CheckerTab = () => {
            binStr = "UNKNOWN BIN DATA";
         }
 
-        setResults(prev => [{ 
-          id: resultId, 
-          card, 
-          binInfo: binStr, 
-          response: "Processing validation...", 
-          loading: true, 
-          time: new Date().toLocaleTimeString() 
-        }, ...prev]);
+        setResults(prev => [{ id: resultId, card, binInfo: binStr, response: "Processing validation...", loading: true, time: new Date().toLocaleTimeString() }, ...prev]);
 
         try {
           const payload = {
@@ -548,11 +574,7 @@ const CheckerTab = () => {
           };
           
           const { data } = await axios.post("/api/checker/run", payload);
-          
-          let isApproved = false;
-          let stat = "DECLINED";
-          let msg = "";
-          let price = "";
+          let isApproved = false; let stat = "DECLINED"; let msg = ""; let price = "";
           
           if (data.result) {
             const resStatus = (data.result.status || "").toUpperCase();
@@ -571,32 +593,15 @@ const CheckerTab = () => {
             msg = JSON.stringify(data);
           }
 
-          setResults(prev => prev.map(r => r.id === resultId ? {
-            ...r,
-            loading: false,
-            isApproved,
-            stat,
-            msg,
-            price
-          } : r));
+          setResults(prev => prev.map(r => r.id === resultId ? { ...r, loading: false, isApproved, stat, msg, price } : r));
           
-          if (isApproved) {
-            setStats(prev => ({ ...prev, approved: prev.approved + 1 }));
-          } else {
-            setStats(prev => ({ ...prev, declined: prev.declined + 1 }));
-          }
+          if (isApproved) setStats(prev => ({ ...prev, approved: prev.approved + 1 }));
+          else setStats(prev => ({ ...prev, declined: prev.declined + 1 }));
           
           if (currentIndex % 5 === 0) checkAuth();
           
         } catch (err) {
-          setResults(prev => prev.map(r => r.id === resultId ? {
-            ...r,
-            loading: false,
-            isApproved: false,
-            error: true,
-            stat: "ERROR",
-            msg: "Network Error or Timeout"
-          } : r));
+          setResults(prev => prev.map(r => r.id === resultId ? { ...r, loading: false, isApproved: false, error: true, stat: "ERROR", msg: err.response?.data?.message || "Network Error" } : r));
           setStats(prev => ({ ...prev, errors: prev.errors + 1 }));
         }
       }
@@ -604,7 +609,6 @@ const CheckerTab = () => {
 
     const maxConcurrent = parseInt(threads, 10) || 5;
     const workers = Array.from({ length: Math.min(maxConcurrent, validCards.length) }, () => processCard());
-    
     await Promise.all(workers);
     
     setRunning(false);
@@ -634,19 +638,13 @@ const CheckerTab = () => {
         setShToolsOutput(p => [...p, `Page ${page}: error occurred`]);
       }
     }
-    
     setShToolsOutput(p => [...p, `Total unique stores collected: ${new Set(allStores).size}`]);
-    
     let [min_p, max_p] = shToolsPrice.split('-').map(Number);
     if (!max_p) max_p = 10;
-
     setShToolsOutput(p => [...p, `Extracting products in price range $${min_p} - $${max_p}...`]);
     try {
       const prodRes = await axios.post(`/api/shopify_tools/products`, {
-        stores: Array.from(new Set(allStores)),
-        min_price: min_p,
-        max_price: max_p,
-        proxy_type: shToolsProxy
+        stores: Array.from(new Set(allStores)), min_price: min_p, max_price: max_p, proxy_type: shToolsProxy
       });
       let prods = prodRes.data.products || [];
       setShToolsOutput(p => [...p, `Found ${prods.length} products matching criteria.`]);
@@ -657,13 +655,7 @@ const CheckerTab = () => {
         for (const p_url of prods) {
           try {
             const vRes = await axios.post("/api/checker/run", {
-              gateway: 'shopify',
-              card: '4118101051591193|02|30|646',
-              site_type: 'own', 
-              sk_type: null,
-              sk: null,
-              product_url: p_url,
-              no_proxy: true
+              gateway: 'shopify', card: '4118101051591193|02|30|646', site_type: 'own', product_url: p_url, no_proxy: true
             });
             const vMsg = (vRes.data.message || vRes.data.Response || JSON.stringify(vRes.data)).toUpperCase();
             if (vMsg.includes("CAPTCHA_REQUIRED") || vMsg.includes("DECLINE")) {
@@ -675,12 +667,10 @@ const CheckerTab = () => {
         prods = verified;
         setShToolsOutput(p => [...p, `Verification complete. ${prods.length} valid URLs kept.`]);
       }
-      
       setShToolsUrls(prods);
     } catch (e) {
       setShToolsOutput(p => [...p, `Error extracting products.`]);
     }
-    
     setShToolsRunning(false);
   };
 
@@ -688,13 +678,13 @@ const CheckerTab = () => {
     if (shToolsUrls.length === 0) return;
     try {
       const current = user.shopify_urls ? user.shopify_urls + '\n' : '';
-      await axios.patch("/api/auth/me", {
-        shopify_urls: current + shToolsUrls.join('\n')
-      });
+      await axios.patch("/api/auth/me", { shopify_urls: current + shToolsUrls.join('\n') });
       toast.success("Added URLs to your Default Shopify Product URLs");
       checkAuth();
     } catch (e) { toast.error("Failed to save"); }
   };
+
+  const isPremiumOrAdmin = user.plan === "premium" || user.role === "admin";
 
   return (
     <div className="max-w-[1400px] mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -730,17 +720,20 @@ const CheckerTab = () => {
         <div className="lg:col-span-3 space-y-6">
           <div className="ios-glass-card rounded-3xl overflow-hidden min-h-[450px]">
             <div className="p-6 md:p-8">
+              
               <div className="flex items-center justify-between mb-4 border-b border-neutral-800/50 pb-4">
                  <span className="text-sm font-medium text-neutral-300">Gateway Configuration</span>
                  {activeGateway !== 'shopify_tools' && (
-                   <div className="flex items-center gap-2">
-                     <label className="text-xs text-neutral-500">Threads</label>
-                     <select value={threads} onChange={e => setThreads(e.target.value)} disabled={running} className="h-8 rounded-lg bg-neutral-900 border border-neutral-800 text-xs text-neutral-300 px-2 focus:outline-none">
-                       {[1,3,5,10,15].map(t => <option key={t} value={t}>{t} Threads</option>)}
-                     </select>
+                   <div className="flex flex-col gap-1 min-w-[150px]">
+                     <div className="flex justify-between items-center text-xs text-neutral-500">
+                       <span>Threads</span>
+                       <span>{threads}</span>
+                     </div>
+                     <input type="range" min="1" max="15" value={threads} onChange={(e)=>setThreads(parseInt(e.target.value))} disabled={running} className="w-full h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-white" />
                    </div>
                  )}
               </div>
+
               <AnimatePresence mode="wait">
                 
                 {activeGateway === 'stripe' && (
@@ -752,7 +745,7 @@ const CheckerTab = () => {
                       </div>
                       <div className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 rounded-xl p-1">
                         <button type="button" onClick={() => setStripeSkType("sk_based")} className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${stripeSkType === "sk_based" ? "bg-neutral-800 text-white shadow-sm" : "text-neutral-500 hover:text-neutral-300"}`}>SK-Based</button>
-                        <button type="button" onClick={() => setStripeSkType("non_sk")} className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${stripeSkType === "non_sk" ? "bg-neutral-800 text-white shadow-sm" : "text-neutral-500 hover:text-neutral-300"}`}>Non-SK Based</button>
+                        <button type="button" onClick={() => setStripeSkType("non_sk")} disabled={!isPremiumOrAdmin} className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${stripeSkType === "non_sk" ? "bg-neutral-800 text-white shadow-sm" : "text-neutral-500 hover:text-neutral-300 disabled:opacity-30"}`}>Non-SK (Premium)</button>
                       </div>
                     </div>
                     {stripeSkType === 'sk_based' && !user.stripe_sk && (
@@ -774,7 +767,7 @@ const CheckerTab = () => {
                        <div className="bg-white/[0.03] border border-white/[0.05] rounded-2xl px-5 py-4 flex items-center justify-between">
                          <div>
                            <span className="text-sm font-medium text-neutral-300 block mb-1">Using Global Admin Configured Secret Key</span>
-                           <span className="text-xs text-neutral-500">Admin managed key.</span>
+                           <span className="text-xs text-neutral-500">Premium feature active.</span>
                          </div>
                          <Check className="w-5 h-5 text-green-500" />
                        </div>
@@ -798,7 +791,7 @@ const CheckerTab = () => {
                       </div>
                       <div className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 rounded-xl p-1">
                         <button type="button" onClick={() => setShopifySiteType("own")} className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${shopifySiteType === "own" ? "bg-neutral-800 text-white shadow-sm" : "text-neutral-500 hover:text-neutral-300"}`}>Own Site</button>
-                        <button type="button" onClick={() => setShopifySiteType("inbuilt")} className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${shopifySiteType === "inbuilt" ? "bg-neutral-800 text-white shadow-sm" : "text-neutral-500 hover:text-neutral-300"}`}>Inbuilt Site</button>
+                        <button type="button" onClick={() => setShopifySiteType("inbuilt")} disabled={!isPremiumOrAdmin} className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${shopifySiteType === "inbuilt" ? "bg-neutral-800 text-white shadow-sm" : "text-neutral-500 hover:text-neutral-300 disabled:opacity-30"}`}>Inbuilt (Premium)</button>
                       </div>
                     </div>
                     {shopifySiteType === 'own' && (
@@ -814,7 +807,7 @@ const CheckerTab = () => {
                        <div className="bg-white/[0.03] border border-white/[0.05] rounded-2xl px-5 py-4 flex items-center justify-between">
                          <div>
                            <span className="text-sm font-medium text-neutral-300 block mb-1">Using Global Admin Configured Product URLs</span>
-                           <span className="text-xs text-neutral-500">Admin managed list.</span>
+                           <span className="text-xs text-neutral-500">Premium feature active.</span>
                          </div>
                          <Check className="w-5 h-5 text-green-500" />
                        </div>
@@ -831,15 +824,13 @@ const CheckerTab = () => {
 
                 {activeGateway === 'shopify_tools' && (
                   <motion.form key="shopify_tools" initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} onSubmit={handleStartScraper} className="space-y-6">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-blue-500/10 rounded-2xl"><Search className="w-6 h-6 text-blue-400"/></div>
-                        <h2 className="text-xl font-medium text-neutral-200">Shopify Product Scraper</h2>
-                      </div>
-                      <div className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 rounded-xl p-1">
-                        <button type="button" onClick={() => setShToolsProxy("own")} className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${shToolsProxy === "own" ? "bg-neutral-800 text-white shadow-sm" : "text-neutral-500 hover:text-neutral-300"}`}>Own Proxies</button>
-                        <button type="button" onClick={() => setShToolsProxy("default")} className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${shToolsProxy === "default" ? "bg-neutral-800 text-white shadow-sm" : "text-neutral-500 hover:text-neutral-300"}`}>Admin Proxies</button>
-                      </div>
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="p-2 bg-blue-500/10 rounded-2xl"><Search className="w-6 h-6 text-blue-400"/></div>
+                      <h2 className="text-xl font-medium text-neutral-200">Shopify Product Scraper</h2>
+                    </div>
+                    <div className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 rounded-xl p-1 w-fit mb-4">
+                      <button type="button" onClick={() => setShToolsProxy("own")} className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${shToolsProxy === "own" ? "bg-neutral-800 text-white shadow-sm" : "text-neutral-500 hover:text-neutral-300"}`}>Own Proxies</button>
+                      <button type="button" onClick={() => setShToolsProxy("default")} className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${shToolsProxy === "default" ? "bg-neutral-800 text-white shadow-sm" : "text-neutral-500 hover:text-neutral-300"}`}>Admin Proxies</button>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="space-y-2">
@@ -867,7 +858,7 @@ const CheckerTab = () => {
                       <input type="checkbox" checked={shToolsVerify} onChange={e => setShToolsVerify(e.target.checked)} disabled={shToolsRunning} className="w-5 h-5 rounded border-neutral-800 bg-neutral-900" />
                       <div>
                         <span className="text-sm font-medium text-neutral-200 block">Verify URLs before saving</span>
-                        <span className="text-xs text-neutral-500">Filters dead checkouts automatically.</span>
+                        <span className="text-xs text-neutral-500">Filters dead checkouts automatically. (Uses direct connection)</span>
                       </div>
                     </label>
                     <Button type="submit" disabled={shToolsRunning} className="w-full gap-2 mt-2">
@@ -898,7 +889,7 @@ const CheckerTab = () => {
               <h3 className="text-sm font-medium text-white mb-4">Terminal Output</h3>
               <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 font-mono text-[11px] sm:text-xs">
                 {results.map((r, i) => (
-                  <div key={r.id || i} className={`p-4 rounded-2xl border flex flex-col gap-2 ${
+                  <div key={r.id || i} className={`p-4 rounded-xl border flex flex-col gap-2 ${
                     r.loading ? 'bg-neutral-800/30 border-neutral-700/30 text-neutral-400' :
                     r.isApproved ? 'bg-green-500/10 border-green-500/20 text-green-400' : 
                     r.error ? 'bg-neutral-800/50 border-neutral-700/50 text-neutral-400' : 
@@ -921,10 +912,10 @@ const CheckerTab = () => {
                         <span>Processing validation...</span>
                       </div>
                     ) : (
-                      <div className="flex flex-col gap-0.5 mt-1 break-words whitespace-pre-wrap max-w-full">
-                        <div className="text-neutral-200 break-words w-full"><span className="opacity-50 mr-2 shrink-0">Status:</span> <span className="break-all">{r.stat}</span></div>
-                        <div className="text-neutral-200 break-words w-full"><span className="opacity-50 mr-2 shrink-0">Response:</span> <span className="break-all whitespace-pre-wrap">{r.msg}</span></div>
-                        {r.price && <div className="text-neutral-200 break-words w-full"><span className="opacity-50 mr-2 shrink-0">Price:</span> <span className="break-all">{r.price}</span></div>}
+                      <div className="flex flex-col gap-0.5 mt-1">
+                        <div className="text-neutral-200"><span className="opacity-50 mr-2">Status:</span> {r.stat}</div>
+                        <div className="text-neutral-200"><span className="opacity-50 mr-2">Response:</span> {r.msg}</div>
+                        {r.price && <div className="text-neutral-200"><span className="opacity-50 mr-2">Price:</span> {r.price}</div>}
                       </div>
                     )}
                   </div>
@@ -934,7 +925,6 @@ const CheckerTab = () => {
           )}
         </div>
 
-        {/* Dashboard Side Widget */}
         <div className="lg:col-span-1 space-y-6">
           <div className="ios-glass-card p-6 rounded-3xl flex flex-col items-center text-center justify-center min-h-[200px] relative overflow-hidden">
              <div className="absolute top-0 right-0 p-4 opacity-5"><Activity className="w-32 h-32 text-white"/></div>
@@ -980,12 +970,21 @@ const AdminDashboard = () => {
   const [globalUrls, setGlobalUrls] = useState("");
   const [globalProxies, setGlobalProxies] = useState("");
 
+  const [redeemType, setRedeemType] = useState("credits");
+  const [redeemValue, setRedeemValue] = useState(100);
+  const [codes, setCodes] = useState([]);
+
   const fetchUsers = async () => {
     try { const { data } = await axios.get("/api/admin/users"); setUsers(data); } catch (e) {} finally { setLoading(false); }
+  };
+
+  const fetchCodes = async () => {
+    try { const { data } = await axios.get("/api/admin/redeem_codes"); setCodes(data); } catch (e) {}
   };
   
   useEffect(() => { 
     fetchUsers(); 
+    fetchCodes();
     if (user) {
       setGlobalSk(user.stripe_sk || "");
       setGlobalUrls(user.shopify_urls || "");
@@ -996,8 +995,16 @@ const AdminDashboard = () => {
   const handleCreateUser = async (e) => {
     e.preventDefault();
     try {
-      await axios.post("/api/admin/users", { username: newUsername, password: newPassword, role: "user", credits: parseInt(newCredits, 10), limits: "standard" });
+      await axios.post("/api/admin/users", { username: newUsername, password: newPassword, role: "user", credits: parseInt(newCredits, 10), plan: "free" });
       toast.success("User created."); setNewUsername(""); setNewPassword(""); fetchUsers();
+    } catch (e) { toast.error(formatApiError(e.response?.data?.detail)); }
+  };
+
+  const handleCreateCode = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.post("/api/admin/redeem_codes", { type: redeemType, value: parseInt(redeemValue, 10) });
+      toast.success("Redeem code generated"); fetchCodes();
     } catch (e) { toast.error(formatApiError(e.response?.data?.detail)); }
   };
 
@@ -1021,94 +1028,113 @@ const AdminDashboard = () => {
     if (!window.confirm("Confirm delete?")) return;
     try { await axios.delete(`/api/admin/users/${userId}`); fetchUsers(); } catch (e) {}
   };
+  const deleteCode = async (codeId) => {
+    try { await axios.delete(`/api/admin/redeem_codes/${codeId}`); fetchCodes(); } catch (e) {}
+  };
 
   return (
     <div className="max-w-[1400px] mx-auto space-y-6">
       <h1 className="text-2xl font-semibold text-white">Admin Control Panel</h1>
       
-      <div className="ios-glass-card rounded-3xl p-6 mb-6">
-        <h3 className="font-medium text-neutral-200 mb-4">Global API Configuration</h3>
-        <form onSubmit={handleSaveGlobal} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-neutral-400">Global Stripe SK (For Non-SK Based)</label>
-            <Input type="password" value={globalSk} onChange={e => setGlobalSk(e.target.value)} placeholder="sk_live_..." />
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-neutral-400">Global Shopify URLs (For Inbuilt Site)</label>
-            <Textarea value={globalUrls} onChange={e => setGlobalUrls(e.target.value)} placeholder="https://store.com/products/1" className="min-h-[100px]" />
-          </div>
-          <div className="space-y-2 md:col-span-2">
-            <label className="text-xs font-medium text-neutral-400">Global Shopify Scraper Proxies (For Default Proxies)</label>
-            <Textarea value={globalProxies} onChange={e => setGlobalProxies(e.target.value)} placeholder="ip:port:user:pass" className="min-h-[100px]" />
-          </div>
-          <div className="md:col-span-2">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="ios-glass-card rounded-3xl p-6">
+          <h3 className="font-medium text-neutral-200 mb-4">Global API Configuration</h3>
+          <form onSubmit={handleSaveGlobal} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-neutral-400">Global Stripe SK (For Non-SK Based)</label>
+              <Input type="password" value={globalSk} onChange={e => setGlobalSk(e.target.value)} placeholder="sk_live_..." />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-neutral-400">Global Shopify URLs (For Inbuilt Site)</label>
+              <Textarea value={globalUrls} onChange={e => setGlobalUrls(e.target.value)} placeholder="https://store.com/products/1" className="min-h-[100px]" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-neutral-400">Global Shopify Scraper Proxies</label>
+              <Textarea value={globalProxies} onChange={e => setGlobalProxies(e.target.value)} placeholder="ip:port:user:pass" className="min-h-[100px]" />
+            </div>
             <Button type="submit">Save Global Config</Button>
-          </div>
-        </form>
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div className="xl:col-span-1 ios-glass-card rounded-3xl p-6 h-fit">
-          <h3 className="font-medium text-neutral-200 mb-4 flex items-center gap-2"><Plus className="w-4 h-4"/> Create User</h3>
-          <form onSubmit={handleCreateUser} className="space-y-4">
-            <Input value={newUsername} onChange={(e) => setNewUsername(e.target.value)} required placeholder="Username" />
-            <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required placeholder="Password" />
-            <Input type="number" value={newCredits} onChange={(e) => setNewCredits(e.target.value)} min="0" required placeholder="Credits" />
-            <Button type="submit" className="w-full">Create Account</Button>
           </form>
         </div>
-        <div className="xl:col-span-2 ios-glass-card rounded-3xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-neutral-800/50 bg-white/[0.02]">
-                  <th className="px-6 py-4 text-[11px] uppercase text-neutral-500">User</th>
-                  <th className="px-6 py-4 text-[11px] uppercase text-neutral-500">Status</th>
-                  <th className="px-6 py-4 text-[11px] uppercase text-neutral-500 text-right">Credits</th>
-                  <th className="px-6 py-4 text-[11px] uppercase text-neutral-500 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map(u => (
-                  <tr key={u._id} className="border-b border-neutral-800/30 hover:bg-white/[0.02]">
-                    <td className="px-6 py-4 font-medium text-neutral-200">{u.username} <span className="text-[10px] text-neutral-500 uppercase ml-2">{u.role}</span></td>
-                    <td className="px-6 py-4">
-                      <span className={`text-xs font-medium px-2.5 py-1 rounded-lg ${u.status === 'active' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
-                        {u.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right font-mono text-neutral-300">{u.credits?.toLocaleString()}</td>
-                    <td className="px-6 py-4 text-right space-x-2">
-                      <Button variant="outline" size="sm" onClick={() => toggleStatus(u)}>{u.status === 'active' ? 'Ban' : 'Unban'}</Button>
-                      <Button variant="danger" size="sm" onClick={() => deleteUser(u._id)}>Delete</Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+
+        <div className="space-y-6">
+          <div className="ios-glass-card rounded-3xl p-6 h-fit">
+            <h3 className="font-medium text-neutral-200 mb-4 flex items-center gap-2"><Plus className="w-4 h-4"/> Create User</h3>
+            <form onSubmit={handleCreateUser} className="space-y-4">
+              <Input value={newUsername} onChange={(e) => setNewUsername(e.target.value)} required placeholder="Username" />
+              <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required placeholder="Password" />
+              <Input type="number" value={newCredits} onChange={(e) => setNewCredits(e.target.value)} min="0" required placeholder="Credits" />
+              <Button type="submit" className="w-full">Create Account</Button>
+            </form>
           </div>
+
+          <div className="ios-glass-card rounded-3xl p-6 h-fit">
+            <h3 className="font-medium text-neutral-200 mb-4 flex items-center gap-2"><Gift className="w-4 h-4"/> Generate Redeem Code</h3>
+            <form onSubmit={handleCreateCode} className="space-y-4">
+              <div className="flex gap-4">
+                <div className="flex-1 space-y-2">
+                  <label className="text-xs text-neutral-400">Type</label>
+                  <select value={redeemType} onChange={e=>setRedeemType(e.target.value)} className="w-full h-12 bg-neutral-900/40 border border-neutral-800 rounded-full px-4 text-sm text-white focus:outline-none">
+                     <option value="credits">Credits</option>
+                     <option value="premium">Premium Days</option>
+                  </select>
+                </div>
+                <div className="flex-1 space-y-2">
+                  <label className="text-xs text-neutral-400">Value</label>
+                  <Input type="number" value={redeemValue} onChange={e=>setRedeemValue(e.target.value)} required min="1" />
+                </div>
+              </div>
+              <Button type="submit" className="w-full">Generate</Button>
+            </form>
+            <div className="mt-4 max-h-[150px] overflow-y-auto">
+              {codes.map(c => (
+                 <div key={c._id} className="flex justify-between items-center text-xs p-2 border-b border-neutral-800/50">
+                    <div>
+                      <div className={`font-mono ${c.used ? 'line-through opacity-50' : 'text-green-400'}`}>{c.code}</div>
+                      <div className="text-neutral-500">{c.value} {c.type === 'premium' ? 'Days' : 'Credits'}</div>
+                    </div>
+                    {!c.used && <Button variant="ghost" size="sm" onClick={()=>deleteCode(c._id)} className="text-red-500">Del</Button>}
+                 </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="ios-glass-card rounded-3xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="border-b border-neutral-800/50 bg-white/[0.02]">
+                <th className="px-6 py-4 text-[11px] uppercase text-neutral-500">User</th>
+                <th className="px-6 py-4 text-[11px] uppercase text-neutral-500">Plan / Status</th>
+                <th className="px-6 py-4 text-[11px] uppercase text-neutral-500 text-right">Credits</th>
+                <th className="px-6 py-4 text-[11px] uppercase text-neutral-500 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map(u => (
+                <tr key={u._id} className="border-b border-neutral-800/30 hover:bg-white/[0.02]">
+                  <td className="px-6 py-4 font-medium text-neutral-200">{u.username} <span className="text-[10px] text-neutral-500 uppercase ml-2">{u.role}</span></td>
+                  <td className="px-6 py-4">
+                    <span className={`text-xs font-medium px-2.5 py-1 rounded-lg ${u.status === 'active' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
+                      {u.status}
+                    </span>
+                    <span className="text-xs font-medium px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-400 ml-2 capitalize">
+                      {u.plan || 'free'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-right font-mono text-neutral-300">{u.credits?.toLocaleString()}</td>
+                  <td className="px-6 py-4 text-right space-x-2">
+                    <Button variant="outline" size="sm" onClick={() => toggleStatus(u)}>{u.status === 'active' ? 'Ban' : 'Unban'}</Button>
+                    <Button variant="danger" size="sm" onClick={() => deleteUser(u._id)}>Delete</Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
-  );
-};
-
-const ProtectedRoute = ({ children, adminOnly = false }) => {
-  const { user, loading, justLoggedIn, setJustLoggedIn } = useAuth();
-  const [transitioning, setTransitioning] = useState(false);
-
-  useEffect(() => {
-    if (justLoggedIn) setTransitioning(true);
-  }, [justLoggedIn]);
-
-  if (loading) return <div className="min-h-screen bg-black flex items-center justify-center"><div className="w-6 h-6 border-2 border-neutral-800 border-t-neutral-200 rounded-full animate-spin"></div></div>;
-  if (!user) return <Navigate to="/login" replace />;
-  if (transitioning) return <VoidTransition onComplete={() => { setTransitioning(false); setJustLoggedIn(false); }} />;
-
-  return (
-    <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="w-full h-full">
-      <AppLayout>{children}</AppLayout>
-    </motion.div>
   );
 };
 
@@ -1119,7 +1145,7 @@ export default function App() {
       <BrowserRouter>
         <AnimatePresence mode="wait">
           <Routes>
-            <Route path="/" element={<Navigate to="/app/home" replace />} />
+            <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/login" element={<Login />} />
             <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>} />
             <Route path="/app/home" element={<ProtectedRoute><HomeTab /></ProtectedRoute>} />
