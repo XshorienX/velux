@@ -1,0 +1,36 @@
+{
+  "summary": "Verified login page layout fix (zoom removed) - login screen now renders full viewport correctly with no whitespace gaps. Backend /api/auth/login works and returns admin user. However, /app/home is completely broken by a ReferenceError: handleRedeem is not defined in HomeTab component, which prevents verification of Plan Level card and blocks navigation to Admin dashboard.",
+  "tested_scope": ["frontend", "backend", "auth", "integration"],
+  "passed": [
+    "Login page layout: full viewport 1365x768, computed zoom=1, no whitespace gaps (fix confirmed)",
+    "Backend POST /api/auth/login with SHORIEN/Xiron696@ returns 200 with role=admin",
+    "Frontend login form submits and redirects to /app/home"
+  ],
+  "failed": [
+    {
+      "area": "frontend / HomeTab component",
+      "issue": "ReferenceError: handleRedeem is not defined - crashes entire home page render. Function used in <form onSubmit={handleRedeem}> at /app/frontend/src/App.js:346 but never declared inside HomeTab (defined at line 249).",
+      "evidence": "Runtime error overlay: 'handleRedeem is not defined' at HomeTab (bundle.js). Confirmed via grep: only reference is line 346, no definition inside HomeTab scope.",
+      "priority": "HIGH"
+    },
+    {
+      "area": "frontend / HomeTab",
+      "issue": "Plan Level card could not be verified because HomeTab crashes before rendering content.",
+      "evidence": "PLAN LEVEL CARD TEXT: None returned from DOM scan",
+      "priority": "HIGH"
+    },
+    {
+      "area": "frontend / Admin dashboard redeem code generation",
+      "issue": "Cannot reach Admin dashboard from /app/home because home page is crashed. Redeem code generation flow not testable until HomeTab is fixed.",
+      "evidence": "Admin nav link not found on crashed page; test blocked",
+      "priority": "HIGH"
+    }
+  ],
+  "action_items": [
+    "Define handleRedeem function inside HomeTab component in /app/frontend/src/App.js (around line 249-346) OR remove the redeem <form> block if not intended. Likely missing after a recent refactor.",
+    "After fix, retest: login -> /app/home -> Plan Level card shows 'admin' -> navigate to Admin dashboard -> generate redeem code."
+  ],
+  "success_rate": {"backend": "100%", "frontend": "33%"},
+  "retest_needed": true,
+  "full_testing_deferred": true
+}
