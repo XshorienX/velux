@@ -247,7 +247,25 @@ const AppLayout = ({ children }) => {
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 const HomeTab = () => {
-  const { user } = useAuth();
+  const { user, checkAuth } = useAuth();
+  const [redeemCode, setRedeemCode] = useState("");
+  const [redeeming, setRedeeming] = useState(false);
+
+  const handleRedeem = async (e) => {
+    e.preventDefault();
+    if (!redeemCode) return;
+    setRedeeming(true);
+    try {
+      const res = await axios.post("/api/redeem", { code: redeemCode });
+      toast.success(res.data.message);
+      setRedeemCode("");
+      checkAuth();
+    } catch(e) {
+      toast.error(formatApiError(e.response?.data?.detail));
+    } finally {
+      setRedeeming(false);
+    }
+  };
   
   const chartData = React.useMemo(() => {
     const data = [];
