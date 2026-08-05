@@ -295,7 +295,7 @@ const HomeTab = () => {
           </div>
           <h3 className="font-medium text-neutral-400 mb-1">Plan Level</h3>
           <div className="text-xl text-white mt-2 font-medium capitalize">
-            {user.plan}
+            {user.plan || 'Free'}
           </div>
         </div>
 
