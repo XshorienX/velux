@@ -95,7 +95,7 @@ const Login = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user) navigate(user.role === "admin" ? "/admin" : "/app/home", { replace: true });
+    if (user) navigate("/app/home", { replace: true });
   }, [user, navigate]);
 
   const handleLogin = async (e) => {
@@ -105,7 +105,7 @@ const Login = () => {
       const { data } = await axios.post("/api/auth/login", { username, password });
       setJustLoggedIn(true);
       setUser(data.user);
-      navigate(data.user.role === "admin" ? "/admin" : "/app/home", { replace: true });
+      navigate("/app/home", { replace: true });
     } catch (e) {
       toast.error(formatApiError(e.response?.data?.detail) || "Login failed");
     } finally {
@@ -551,10 +551,11 @@ const CheckerTab = () => {
         let msg = "";
         let price = "";
         
-        if (data.status === true && data.result) {
-          isApproved = data.result.status?.toLowerCase() === "charged" || data.result.status?.toLowerCase() === "live";
-          stat = data.result.status?.toUpperCase() || (isApproved ? "LIVE" : "DECLINED");
-          msg = data.result.message || data.result.decline_code || "Processed";
+        if (data.result) {
+          const resStatus = (data.result.status || "").toUpperCase();
+          stat = resStatus || "DECLINED";
+          isApproved = stat === "CHARGED" || stat === "LIVE" || stat === "APPROVED";
+          msg = data.result.message || data.result.decline_code || JSON.stringify(data.result);
           price = data.result.price || data.result.amount || "";
         } else if (data.Status || data.status) {
           const rawStatus = (data.Status || data.status).toString().toUpperCase();
@@ -693,13 +694,13 @@ const CheckerTab = () => {
           <p className="text-neutral-500 mt-1">Select a gateway and input payloads to begin validation.</p>
         </div>
         
-        <div className="flex flex-wrap items-center p-1 bg-neutral-900/50 border border-neutral-800/80 rounded-2xl w-fit">
+        <div className="flex flex-wrap items-center p-1.5 bg-neutral-900/50 border border-neutral-800/80 rounded-[2rem] w-fit">
           {gateways.map(gw => (
             <button 
               key={gw.id}
               onClick={() => { if (!running && !shToolsRunning && gw.active) setActiveGateway(gw.id); }}
               disabled={running || shToolsRunning || !gw.active}
-              className={`flex items-center gap-1.5 py-3 px-5 text-base md:text-sm md:py-2 md:px-4 font-medium rounded-xl transition-all whitespace-nowrap ${
+              className={`flex items-center gap-1.5 py-3 px-5 text-base md:text-sm md:py-2 md:px-4 font-medium rounded-full transition-all whitespace-nowrap ${
                 activeGateway === gw.id 
                   ? 'bg-neutral-800 text-white shadow-sm scale-[1.02]' 
                   : gw.active && !running && !shToolsRunning
@@ -709,7 +710,7 @@ const CheckerTab = () => {
             >
               {gw.icon}
               <span>{gw.name}</span>
-              {gw.soon && <span className="text-[9px] uppercase tracking-wider bg-black border border-neutral-800 px-1.5 py-0.5 rounded-md ml-1">Soon</span>}
+              {gw.soon && <span className="text-[9px] uppercase tracking-wider bg-black border border-neutral-800 px-1.5 py-0.5 rounded-full ml-1">Soon</span>}
             </button>
           ))}
         </div>
