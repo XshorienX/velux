@@ -456,14 +456,16 @@ class CheckerRequest(BaseModel):
     sk: Optional[str] = None
     site_type: Optional[str] = None
     product_url: Optional[str] = None
+    no_proxy: Optional[bool] = False
 
 @app.post("/api/checker/run")
 async def run_checker(req: CheckerRequest, user: dict = Depends(get_current_user)):
-    cursor = db.proxies.find({"user_id": str(user["_id"])})
-    proxies = await cursor.to_list(length=100)
     proxy_url = ""
-    if proxies:
-        proxy_url = random.choice(proxies)["raw"]
+    if not req.no_proxy:
+        cursor = db.proxies.find({"user_id": str(user["_id"])})
+        proxies = await cursor.to_list(length=100)
+        if proxies:
+            proxy_url = random.choice(proxies)["raw"]
         
     try:
         if req.gateway == "stripe":

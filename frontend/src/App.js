@@ -465,6 +465,7 @@ const CheckerTab = () => {
   
   const [shopifySiteType, setShopifySiteType] = useState("own");
   const [shopifyCc, setShopifyCc] = useState("");
+  const [threads, setThreads] = useState("5");
 
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState([]);
@@ -504,99 +505,107 @@ const CheckerTab = () => {
     setRunning(true);
     setResults([]);
     setStats({ approved: 0, declined: 0, errors: 0 });
-    toast.info("Checker engine initialized. Testing cards...");
+    toast.info(`Checker initialized with ${threads} threads...`);
     
     let remainingCards = [...validCards];
+    let index = 0;
 
-    for (let i = 0; i < validCards.length; i++) {
-      const card = validCards[i];
-      const resultId = Date.now() + i;
-      
-      remainingCards.shift();
-      if (activeGateway === 'stripe') setStripeCc(remainingCards.join('\n'));
-      else if (activeGateway === 'shopify') setShopifyCc(remainingCards.join('\n'));
-
-      // Fetch BIN Info from backend API
-      let binStr = "";
-      try {
-         const binRes = await axios.get(`/api/bin/${card.substring(0,6)}`);
-         const bData = binRes.data;
-         binStr = `${bData.bank?.name?.toUpperCase() || 'UNKNOWN BANK'} | ${bData.country?.alpha2 || 'XX'} | ${(bData.type || 'UNKNOWN').toUpperCase()} | ${(bData.scheme || '').toUpperCase()}`;
-      } catch (e) {
-         binStr = "UNKNOWN BIN DATA";
-      }
-
-      setResults(prev => [{ 
-        id: resultId, 
-        card, 
-        binInfo: binStr, 
-        response: "Processing validation...", 
-        loading: true, 
-        time: new Date().toLocaleTimeString() 
-      }, ...prev]);
-
-      try {
-        const payload = {
-          gateway: activeGateway,
-          card: card,
-          sk_type: activeGateway === 'stripe' ? stripeSkType : undefined,
-          sk: activeGateway === 'stripe' ? stripeSk : undefined,
-          site_type: activeGateway === 'shopify' ? shopifySiteType : undefined
-        };
+    const processCard = async () => {
+      while (index < validCards.length) {
+        const currentIndex = index++;
+        const card = validCards[currentIndex];
+        const resultId = Date.now() + currentIndex + Math.random();
         
-        const { data } = await axios.post("/api/checker/run", payload);
-        
-        let isApproved = false;
-        let stat = "DECLINED";
-        let msg = "";
-        let price = "";
-        
-        if (data.result) {
-          const resStatus = (data.result.status || "").toUpperCase();
-          stat = resStatus || "DECLINED";
-          isApproved = stat === "CHARGED" || stat === "LIVE" || stat === "APPROVED";
-          msg = data.result.message || data.result.decline_code || JSON.stringify(data.result);
-          price = data.result.price || data.result.amount || "";
-        } else if (data.Status || data.status) {
-          const rawStatus = (data.Status || data.status).toString().toUpperCase();
-          isApproved = rawStatus === "CHARGED" || rawStatus === "LIVE" || rawStatus === "APPROVED";
-          stat = rawStatus;
-          msg = data.Response || data.message || data.result?.message || "Processed";
-          price = data.Price || data.price || data.amount || "";
-        } else {
-          stat = "UNKNOWN";
-          msg = JSON.stringify(data);
+        remainingCards = remainingCards.filter(c => c !== card);
+        if (activeGateway === 'stripe') setStripeCc(remainingCards.join('\n'));
+        else if (activeGateway === 'shopify') setShopifyCc(remainingCards.join('\n'));
+
+        let binStr = "";
+        try {
+           const binRes = await axios.get(`/api/bin/${card.substring(0,6)}`);
+           const bData = binRes.data;
+           binStr = `${bData.bank?.name?.toUpperCase() || 'UNKNOWN BANK'} | ${bData.country?.alpha2 || 'XX'} | ${(bData.type || 'UNKNOWN').toUpperCase()} | ${(bData.scheme || '').toUpperCase()}`;
+        } catch (e) {
+           binStr = "UNKNOWN BIN DATA";
         }
 
-        setResults(prev => prev.map(r => r.id === resultId ? {
-          ...r,
-          loading: false,
-          isApproved,
-          stat,
-          msg,
-          price
-        } : r));
-        
-        if (isApproved) {
-          setStats(prev => ({ ...prev, approved: prev.approved + 1 }));
-        } else {
-          setStats(prev => ({ ...prev, declined: prev.declined + 1 }));
+        setResults(prev => [{ 
+          id: resultId, 
+          card, 
+          binInfo: binStr, 
+          response: "Processing validation...", 
+          loading: true, 
+          time: new Date().toLocaleTimeString() 
+        }, ...prev]);
+
+        try {
+          const payload = {
+            gateway: activeGateway,
+            card: card,
+            sk_type: activeGateway === 'stripe' ? stripeSkType : undefined,
+            sk: activeGateway === 'stripe' ? stripeSk : undefined,
+            site_type: activeGateway === 'shopify' ? shopifySiteType : undefined
+          };
+          
+          const { data } = await axios.post("/api/checker/run", payload);
+          
+          let isApproved = false;
+          let stat = "DECLINED";
+          let msg = "";
+          let price = "";
+          
+          if (data.result) {
+            const resStatus = (data.result.status || "").toUpperCase();
+            stat = resStatus || "DECLINED";
+            isApproved = stat === "CHARGED" || stat === "LIVE" || stat === "APPROVED";
+            msg = data.result.message || data.result.decline_code || JSON.stringify(data.result);
+            price = data.result.price || data.result.amount || "";
+          } else if (data.Status || data.status) {
+            const rawStatus = (data.Status || data.status).toString().toUpperCase();
+            isApproved = rawStatus === "CHARGED" || rawStatus === "LIVE" || rawStatus === "APPROVED";
+            stat = rawStatus;
+            msg = data.Response || data.message || data.result?.message || "Processed";
+            price = data.Price || data.price || data.amount || "";
+          } else {
+            stat = "UNKNOWN";
+            msg = JSON.stringify(data);
+          }
+
+          setResults(prev => prev.map(r => r.id === resultId ? {
+            ...r,
+            loading: false,
+            isApproved,
+            stat,
+            msg,
+            price
+          } : r));
+          
+          if (isApproved) {
+            setStats(prev => ({ ...prev, approved: prev.approved + 1 }));
+          } else {
+            setStats(prev => ({ ...prev, declined: prev.declined + 1 }));
+          }
+          
+          if (currentIndex % 5 === 0) checkAuth();
+          
+        } catch (err) {
+          setResults(prev => prev.map(r => r.id === resultId ? {
+            ...r,
+            loading: false,
+            isApproved: false,
+            error: true,
+            stat: "ERROR",
+            msg: "Network Error or Timeout"
+          } : r));
+          setStats(prev => ({ ...prev, errors: prev.errors + 1 }));
         }
-        
-        if (i % 5 === 0) checkAuth();
-        
-      } catch (err) {
-        setResults(prev => prev.map(r => r.id === resultId ? {
-          ...r,
-          loading: false,
-          isApproved: false,
-          error: true,
-          stat: "ERROR",
-          msg: "Network Error or Timeout"
-        } : r));
-        setStats(prev => ({ ...prev, errors: prev.errors + 1 }));
       }
-    }
+    };
+
+    const maxConcurrent = parseInt(threads, 10) || 5;
+    const workers = Array.from({ length: Math.min(maxConcurrent, validCards.length) }, () => processCard());
+    
+    await Promise.all(workers);
     
     setRunning(false);
     checkAuth();
@@ -653,7 +662,8 @@ const CheckerTab = () => {
               site_type: 'own', 
               sk_type: null,
               sk: null,
-              product_url: p_url
+              product_url: p_url,
+              no_proxy: true
             });
             const vMsg = (vRes.data.message || vRes.data.Response || JSON.stringify(vRes.data)).toUpperCase();
             if (vMsg.includes("CAPTCHA_REQUIRED") || vMsg.includes("DECLINE")) {
@@ -720,6 +730,17 @@ const CheckerTab = () => {
         <div className="lg:col-span-3 space-y-6">
           <div className="ios-glass-card rounded-3xl overflow-hidden min-h-[450px]">
             <div className="p-6 md:p-8">
+              <div className="flex items-center justify-between mb-4 border-b border-neutral-800/50 pb-4">
+                 <span className="text-sm font-medium text-neutral-300">Gateway Configuration</span>
+                 {activeGateway !== 'shopify_tools' && (
+                   <div className="flex items-center gap-2">
+                     <label className="text-xs text-neutral-500">Threads</label>
+                     <select value={threads} onChange={e => setThreads(e.target.value)} disabled={running} className="h-8 rounded-lg bg-neutral-900 border border-neutral-800 text-xs text-neutral-300 px-2 focus:outline-none">
+                       {[1,3,5,10,15].map(t => <option key={t} value={t}>{t} Threads</option>)}
+                     </select>
+                   </div>
+                 )}
+              </div>
               <AnimatePresence mode="wait">
                 
                 {activeGateway === 'stripe' && (
