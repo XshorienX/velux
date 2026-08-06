@@ -611,7 +611,15 @@ def check_givewp_stripe(card_details: str, proxy: str = ""):
         cc, m, y, cvc = parts[0], parts[1], parts[2][-2:], parts[3]
         
         session = requests.Session()
-        proxies_dict = {"http": proxy, "https": proxy} if proxy else None
+        formatted_proxy = proxy
+        if proxy and not proxy.startswith("http"):
+            p_parts = proxy.split(":")
+            if len(p_parts) >= 4:
+                formatted_proxy = f"http://{p_parts[2]}:{':'.join(p_parts[3:])}@{p_parts[0]}:{p_parts[1]}"
+            elif len(p_parts) == 2:
+                formatted_proxy = f"http://{p_parts[0]}:{p_parts[1]}"
+
+        proxies_dict = {"http": formatted_proxy, "https": formatted_proxy} if formatted_proxy else None
         if proxies_dict: session.proxies.update(proxies_dict)
 
         email = "".join(random.choices(string.ascii_lowercase, k=10)) + str(random.randint(100, 999)) + random.choice(["@gmail.com", "@outlook.com"])
