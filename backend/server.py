@@ -236,6 +236,25 @@ async def login(req: LoginRequest, request: Request, response: Response):
     user.pop("premium_until", None)
     return {"message": "Logged in successfully", "user": user}
 
+@app.post("/api/auth/refresh")
+async def refresh_token(request: Request, response: Response):
+    refresh_token = request.cookies.get("refresh_token")
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="No refresh token")
+    try:
+        payload = jwt.decode(refresh_token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        if payload.get("type") != "refresh":
+            raise HTTPException(status_code=401, detail="Invalid token type")
+        user = await db.users.find_one({"_id": ObjectId(payload["sub"])})
+        if not user or user.get("status") == "banned":
+            raise HTTPException(status_code=401, detail="Invalid user")
+        
+        access_token = create_access_token(str(user["_id"]), user["username"])
+        response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=900, path="/")
+        return {"message": "Token refreshed"}
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+
 @app.get("/api/auth/me")
 async def get_me(user: dict = Depends(get_current_user)):
     return user
@@ -675,6 +694,17 @@ async def run_checker(req: CheckerRequest, user: dict = Depends(get_current_user
         if is_approved:
             inc_doc["credits"] = -1
             inc_doc[f"daily_stats.{today_str}.approved"] = 1
+            msg_str = ""
+            if data and isinstance(data, dict):
+                if data.get("result"): msg_str = data["result"].get("message", "") or data["result"].get("decline_code", "")
+                else: msg_str = data.get("Response", "") or data.get("message", "")
+            await db.saved_ccs.insert_one({
+                "user_id": str(user["_id"]),
+                "card": req.card,
+                "gateway": req.gateway,
+                "response": msg_str,
+                "created_at": datetime.now(timezone.utc)
+            })
         else:
             inc_doc[f"daily_stats.{today_str}.declined"] = 1
             
@@ -687,3 +717,11 @@ async def run_checker(req: CheckerRequest, user: dict = Depends(get_current_user
         if "api.barryxapi.xyz" in error_msg:
             return {"status": False, "message": "Api Error: Gateway connection timeout or unavailable."}
         return {"status": False, "message": f"Engine Error: {error_msg}"}
+
+@app.get("/api/checker/saved")
+async def get_saved_ccs(user: dict = Depends(get_current_user)):
+    cursor = db.saved_ccs.find({"user_id": str(user["_id"])}).sort("created_at", -1)
+    docs = await cursor.to_list(length=1000)
+    for d in docs:
+        d["_id"] = str(d["_id"])
+    return docs

@@ -3,10 +3,27 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from
 import { Toaster, toast } from "sonner";
 import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
-import { Lock, User, Terminal, ChevronRight, LogOut, Activity, ShieldAlert, Cpu, Plus, CreditCard, ShoppingBag, Code2, Play, Settings as SettingsIcon, Home, Compass, MessageSquare, Globe, Check, Link, Search, Gift } from "lucide-react";
+import { Lock, User, Terminal, ChevronRight, LogOut, Activity, ShieldAlert, Cpu, Plus, CreditCard, ShoppingBag, Code2, Play, Settings as SettingsIcon, Home, Compass, MessageSquare, Globe, Check, Link, Search, Gift, Archive } from "lucide-react";
 
 axios.defaults.baseURL = process.env.REACT_APP_BACKEND_URL;
 axios.defaults.withCredentials = true;
+
+axios.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    if (error.response?.status === 401 && !originalRequest._retry && originalRequest.url !== '/api/auth/login' && originalRequest.url !== '/api/auth/refresh') {
+      originalRequest._retry = true;
+      try {
+        await axios.post('/api/auth/refresh');
+        return axios(originalRequest);
+      } catch (refreshError) {
+        return Promise.reject(refreshError);
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 const AuthContext = createContext();
 
@@ -177,6 +194,7 @@ const AppLayout = ({ children }) => {
     { id: 'home', path: '/app/home', icon: <Home className="w-6 h-6 sm:w-5 sm:h-5" />, label: 'Home' },
     { id: 'checker', path: '/app/checker', icon: <Compass className="w-6 h-6 sm:w-5 sm:h-5" />, label: 'Checker' },
     { id: 'proxy', path: '/app/proxy', icon: <Globe className="w-6 h-6 sm:w-5 sm:h-5" />, label: 'Proxy' },
+    { id: 'vault', path: '/app/vault', icon: <Archive className="w-6 h-6 sm:w-5 sm:h-5" />, label: 'Hits' },
     { id: 'settings', path: '/app/settings', icon: <SettingsIcon className="w-6 h-6 sm:w-5 sm:h-5" />, label: 'Settings' }
   ];
 
@@ -441,6 +459,91 @@ const SettingsTab = () => {
         <div className="pt-2 flex justify-end">
           <Button type="submit" disabled={saving} className="w-full sm:w-auto">{saving ? "Saving..." : "Save Settings"}</Button>
         </div>
+const VaultTab = () => {
+  const [hits, setHits] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchHits = async () => {
+    try {
+      const { data } = await axios.get("/api/checker/saved");
+      setHits(data);
+    } catch (e) {
+      toast.error("Failed to load saved hits");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchHits();
+  }, []);
+
+  const downloadHits = () => {
+    if (hits.length === 0) return;
+    const content = hits.map(h => `${h.card} | ${h.gateway.toUpperCase()} | ${h.response} | ${new Date(h.created_at).toLocaleString()}`).join('\n');
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `VeLuX_Hits_${new Date().toISOString().split('T')[0]}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="max-w-[1200px] mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex justify-between items-end">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-semibold text-white tracking-tight">Hit Vault</h1>
+          <p className="text-neutral-500 mt-1">View and export your successfully checked cards.</p>
+        </div>
+        <Button onClick={downloadHits} disabled={hits.length === 0} variant="outline" className="hidden sm:flex">
+          Download TXT
+        </Button>
+      </div>
+
+      <div className="ios-glass-card rounded-3xl flex flex-col h-[500px]">
+        <div className="px-6 py-5 border-b border-neutral-800/50 flex items-center justify-between">
+          <h3 className="font-medium text-white">Approved Cards</h3>
+          <span className="text-xs text-neutral-500 font-mono">{hits.length} Saved Hits</span>
+        </div>
+        <div className="flex-1 overflow-y-auto p-2">
+          {loading ? (
+            <div className="h-full flex items-center justify-center text-neutral-500">Loading hits...</div>
+          ) : (
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-neutral-800/30 text-neutral-500 text-xs uppercase">
+                  <th className="px-4 py-3 font-medium">Card Data</th>
+                  <th className="px-4 py-3 font-medium">Gateway</th>
+                  <th className="px-4 py-3 font-medium">Response</th>
+                  <th className="px-4 py-3 font-medium text-right">Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {hits.map(h => (
+                  <tr key={h._id} className="border-b border-neutral-800/30 hover:bg-white/[0.02] group transition-colors">
+                    <td className="px-4 py-3 font-mono text-[12px] sm:text-[13px] text-green-400 break-all">{h.card}</td>
+                    <td className="px-4 py-3 text-[12px] text-neutral-300 capitalize">{h.gateway}</td>
+                    <td className="px-4 py-3 text-[12px] text-neutral-400 max-w-[200px] truncate">{h.response}</td>
+                    <td className="px-4 py-3 text-right text-[11px] text-neutral-500 font-mono">
+                      {new Date(h.created_at).toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+                {hits.length === 0 && (
+                  <tr>
+                    <td colSpan="4" className="px-6 py-12 text-center text-neutral-500 text-sm">No approved cards saved yet.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
       </form>
     </div>
   );
@@ -1184,6 +1287,7 @@ const AdminDashboard = () => {
               </tr>
             </thead>
             <tbody>
+            <Route path="/app/vault" element={<ProtectedRoute><VaultTab /></ProtectedRoute>} />
               {users.map(u => (
                 <tr key={u._id} className="border-b border-neutral-800/30 hover:bg-white/[0.02]">
                   <td className="px-6 py-4 font-medium text-neutral-200">{u.username} <span className="text-[10px] text-neutral-500 uppercase ml-2">{u.role}</span></td>
