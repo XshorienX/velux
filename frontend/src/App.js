@@ -459,6 +459,11 @@ const SettingsTab = () => {
         <div className="pt-2 flex justify-end">
           <Button type="submit" disabled={saving} className="w-full sm:w-auto">{saving ? "Saving..." : "Save Settings"}</Button>
         </div>
+      </form>
+    </div>
+  );
+};
+
 const VaultTab = () => {
   const [hits, setHits] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -541,10 +546,6 @@ const VaultTab = () => {
           )}
         </div>
       </div>
-    </div>
-  );
-};
-      </form>
     </div>
   );
 };
@@ -1287,7 +1288,6 @@ const AdminDashboard = () => {
               </tr>
             </thead>
             <tbody>
-            <Route path="/app/vault" element={<ProtectedRoute><VaultTab /></ProtectedRoute>} />
               {users.map(u => (
                 <tr key={u._id} className="border-b border-neutral-800/30 hover:bg-white/[0.02]">
                   <td className="px-6 py-4 font-medium text-neutral-200">{u.username} <span className="text-[10px] text-neutral-500 uppercase ml-2">{u.role}</span></td>
@@ -1348,6 +1348,7 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
             <Route path="/app/home" element={<ProtectedRoute><HomeTab /></ProtectedRoute>} />
             <Route path="/app/checker" element={<ProtectedRoute><CheckerTab /></ProtectedRoute>} />
             <Route path="/app/proxy" element={<ProtectedRoute><ProxyTab /></ProtectedRoute>} />
+            <Route path="/app/vault" element={<ProtectedRoute><VaultTab /></ProtectedRoute>} />
             <Route path="/app/settings" element={<ProtectedRoute><SettingsTab /></ProtectedRoute>} />
           </Routes>
         </AnimatePresence>
