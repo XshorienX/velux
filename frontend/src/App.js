@@ -100,7 +100,7 @@ const Button = React.forwardRef(({ className, variant = "default", size = "defau
     icon: "h-12 w-12 text-sm",
   };
   return (
-    <button ref={ref} className={`${base} ${variants[variant]} ${sizes[size]} ${className || ""}`} style={variant === 'default' ? { backgroundColor: 'var(--accent)', color: '#000' } : {}} {...props} />
+    <button ref={ref} className={`${base} ${variants[variant]} ${sizes[size]} ${className || ""}`} style={variant === 'default' ? { backgroundColor: 'var(--accent, #ffffff)', color: '#000' } : {}} {...props} />
   );
 });
 

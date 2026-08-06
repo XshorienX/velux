@@ -699,7 +699,10 @@ def check_givewp_stripe(card_details: str, proxy: str = ""):
         else:
             return {"result": {"status": "DECLINED", "message": res_data.get("status", "Unknown")}}
     except Exception as e:
-        return {"result": {"status": "ERROR", "message": str(e)}}
+        error_msg = str(e)
+        if "changesbristol" in error_msg or "stripe.com" in error_msg:
+            return {"result": {"status": "ERROR", "message": "Api Error: Gateway connection timeout or unavailable."}}
+        return {"result": {"status": "ERROR", "message": error_msg}}
 
 class CheckerRequest(BaseModel):
     gateway: str
@@ -817,7 +820,7 @@ async def run_checker(req: CheckerRequest, user: dict = Depends(get_current_user
             
     except Exception as e:
         error_msg = str(e)
-        if "api.barryxapi.xyz" in error_msg:
+        if "api.barryxapi.xyz" in error_msg or "changesbristol" in error_msg or "stripe.com" in error_msg:
             return {"status": False, "message": "Api Error: Gateway connection timeout or unavailable."}
         return {"status": False, "message": f"Engine Error: {error_msg}"}
 
