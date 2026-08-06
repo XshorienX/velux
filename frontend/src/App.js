@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from
 import { Toaster, toast } from "sonner";
 import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
-import { Lock, User, Terminal, ChevronRight, LogOut, Activity, ShieldAlert, Cpu, Plus, CreditCard, ShoppingBag, Code2, Play, Settings as SettingsIcon, Home, Compass, MessageSquare, Globe, Check, Link, Search, Gift, Archive } from "lucide-react";
+import { Lock, User, Terminal, ChevronRight, LogOut, Activity, ShieldAlert, Cpu, Plus, CreditCard, ShoppingBag, Code2, Play, Settings as SettingsIcon, Home, Compass, MessageSquare, Globe, Check, Link, Search, Gift, Archive, Trash2 } from "lucide-react";
 
 axios.defaults.baseURL = process.env.REACT_APP_BACKEND_URL;
 axios.defaults.withCredentials = true;
@@ -89,7 +89,7 @@ const Textarea = React.forwardRef(({ className, ...props }, ref) => (
 const Button = React.forwardRef(({ className, variant = "default", size = "default", ...props }, ref) => {
   const base = "inline-flex items-center justify-center whitespace-nowrap rounded-full font-medium transition-all focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98]";
   const variants = {
-    default: "bg-white text-black hover:bg-neutral-200 shadow-sm",
+    default: "bg-accent text-black hover:opacity-90 shadow-sm",
     outline: "border border-neutral-800 bg-transparent text-neutral-300 hover:bg-neutral-800/80",
     ghost: "hover:bg-neutral-800/50 text-neutral-400 hover:text-white",
     danger: "bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20",
@@ -100,7 +100,7 @@ const Button = React.forwardRef(({ className, variant = "default", size = "defau
     icon: "h-12 w-12 text-sm",
   };
   return (
-    <button ref={ref} className={`${base} ${variants[variant]} ${sizes[size]} ${className || ""}`} {...props} />
+    <button ref={ref} className={`${base} ${variants[variant]} ${sizes[size]} ${className || ""}`} style={variant === 'default' ? { backgroundColor: 'var(--accent)', color: '#000' } : {}} {...props} />
   );
 });
 
@@ -189,6 +189,7 @@ const AppLayout = ({ children }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const accentColor = user?.accent_color || "#ffffff";
 
   const navItems = [
     { id: 'home', path: '/app/home', icon: <Home className="w-6 h-6 sm:w-5 sm:h-5" />, label: 'Home' },
@@ -203,7 +204,15 @@ const AppLayout = ({ children }) => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col z-10 relative bg-black">
+    <div className="min-h-screen flex flex-col z-10 relative bg-black" style={{ '--accent': accentColor }}>
+      <style>{`
+        ::selection { background-color: var(--accent); color: #000; }
+        .text-accent { color: var(--accent); }
+        .bg-accent { background-color: var(--accent); }
+        .border-accent { border-color: var(--accent); }
+        .active-nav-glow { background-color: var(--accent); opacity: 0.15; }
+        .active-nav-border { border-color: var(--accent); opacity: 0.3; }
+      `}</style>
       <header className="h-16 border-b border-neutral-800/80 bg-black/80 backdrop-blur-md flex items-center justify-between px-4 sm:px-6 sticky top-0 z-40">
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 rounded-lg bg-neutral-900 border border-neutral-800 flex items-center justify-center">
@@ -244,10 +253,12 @@ const AppLayout = ({ children }) => {
               <button 
                 key={item.id}
                 onClick={() => navigate(item.path)}
-                className={`relative flex flex-col items-center justify-center w-full h-16 sm:h-14 rounded-full transition-all duration-300 ${isActive ? 'text-white' : 'text-neutral-500 hover:text-neutral-300'}`}
+                className={`relative flex flex-col items-center justify-center w-full h-16 sm:h-14 rounded-full transition-all duration-300 ${isActive ? 'text-accent' : 'text-neutral-500 hover:text-neutral-300'}`}
               >
                 {isActive && (
-                  <motion.div layoutId="active-nav" className="absolute inset-0 bg-white/10 rounded-full border border-white/5" transition={{ type: "spring", stiffness: 300, damping: 30 }} />
+                  <motion.div layoutId="active-nav" className="absolute inset-0 rounded-full active-nav-border border" transition={{ type: "spring", stiffness: 300, damping: 30 }}>
+                    <div className="absolute inset-0 active-nav-glow rounded-full"></div>
+                  </motion.div>
                 )}
                 <div className="relative z-10 flex flex-col items-center">
                   <div className={`mb-1 transition-transform ${isActive ? 'scale-110' : ''}`}>{item.icon}</div>
@@ -398,7 +409,17 @@ const SettingsTab = () => {
   const [telegramId, setTelegramId] = useState(user.telegram_id || "");
   const [shopifyUrls, setShopifyUrls] = useState(user.shopify_urls || "");
   const [stripeSk, setStripeSk] = useState(user.stripe_sk || "");
+  const [accentColor, setAccentColor] = useState(user.accent_color || "#ffffff");
   const [saving, setSaving] = useState(false);
+
+  const colors = [
+    { name: "White", value: "#ffffff" },
+    { name: "Blue", value: "#3b82f6" },
+    { name: "Purple", value: "#a855f7" },
+    { name: "Green", value: "#22c55e" },
+    { name: "Red", value: "#ef4444" },
+    { name: "Orange", value: "#f97316" }
+  ];
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -408,7 +429,8 @@ const SettingsTab = () => {
         password: password || undefined,
         telegram_id: telegramId,
         shopify_urls: shopifyUrls,
-        stripe_sk: stripeSk
+        stripe_sk: stripeSk,
+        accent_color: accentColor
       });
       toast.success("Settings updated successfully");
       setPassword("");
@@ -428,6 +450,25 @@ const SettingsTab = () => {
       </div>
 
       <form onSubmit={handleSave} className="ios-glass-card rounded-3xl p-6 sm:p-8 space-y-8">
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium text-white border-b border-neutral-800/50 pb-2">Appearance</h3>
+          <div className="space-y-3">
+            <label className="text-xs font-medium text-neutral-400">Accent Color</label>
+            <div className="flex gap-3">
+              {colors.map(c => (
+                <button
+                  key={c.name}
+                  type="button"
+                  onClick={() => setAccentColor(c.value)}
+                  className={`w-8 h-8 rounded-full transition-transform ${accentColor === c.value ? 'scale-125 ring-2 ring-white ring-offset-2 ring-offset-[#0a0a0a]' : 'hover:scale-110'}`}
+                  style={{ backgroundColor: c.value }}
+                  title={c.name}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+
         <div className="space-y-4">
           <h3 className="text-lg font-medium text-white border-b border-neutral-800/50 pb-2">Security</h3>
           <div className="space-y-2">
@@ -495,6 +536,22 @@ const VaultTab = () => {
     URL.revokeObjectURL(url);
   };
 
+  const handleDelete = async (id) => {
+    try {
+      await axios.delete(`/api/checker/saved/${id}`);
+      fetchHits();
+    } catch(e) { toast.error("Failed to delete hit"); }
+  };
+
+  const handleDeleteAll = async () => {
+    if (!window.confirm("Are you sure you want to delete ALL saved hits? This cannot be undone.")) return;
+    try {
+      await axios.delete("/api/checker/saved/all");
+      fetchHits();
+      toast.success("All hits cleared");
+    } catch(e) { toast.error("Failed to clear hits"); }
+  };
+
   return (
     <div className="max-w-[1200px] mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex justify-between items-end">
@@ -502,9 +559,14 @@ const VaultTab = () => {
           <h1 className="text-2xl md:text-3xl font-semibold text-white tracking-tight">Hit Vault</h1>
           <p className="text-neutral-500 mt-1">View and export your successfully checked cards.</p>
         </div>
-        <Button onClick={downloadHits} disabled={hits.length === 0} variant="outline" className="hidden sm:flex">
-          Download TXT
-        </Button>
+        <div className="hidden sm:flex gap-2">
+          <Button onClick={handleDeleteAll} disabled={hits.length === 0} variant="danger">
+            Delete All
+          </Button>
+          <Button onClick={downloadHits} disabled={hits.length === 0} variant="outline">
+            Download TXT
+          </Button>
+        </div>
       </div>
 
       <div className="ios-glass-card rounded-3xl flex flex-col h-[500px]">
@@ -523,6 +585,7 @@ const VaultTab = () => {
                   <th className="px-4 py-3 font-medium">Gateway</th>
                   <th className="px-4 py-3 font-medium">Response</th>
                   <th className="px-4 py-3 font-medium text-right">Time</th>
+                  <th className="px-4 py-3 font-medium text-right w-12"></th>
                 </tr>
               </thead>
               <tbody>
@@ -534,11 +597,16 @@ const VaultTab = () => {
                     <td className="px-4 py-3 text-right text-[11px] text-neutral-500 font-mono">
                       {new Date(h.created_at).toLocaleString()}
                     </td>
+                    <td className="px-4 py-3 text-right">
+                      <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleDelete(h._id)}>
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </td>
                   </tr>
                 ))}
                 {hits.length === 0 && (
                   <tr>
-                    <td colSpan="4" className="px-6 py-12 text-center text-neutral-500 text-sm">No approved cards saved yet.</td>
+                    <td colSpan="5" className="px-6 py-12 text-center text-neutral-500 text-sm">No approved cards saved yet.</td>
                   </tr>
                 )}
               </tbody>

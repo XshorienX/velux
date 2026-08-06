@@ -171,6 +171,7 @@ class UserUpdate(BaseModel):
     shopify_urls: Optional[str] = None
     stripe_sk: Optional[str] = None
     global_proxies: Optional[str] = None
+    accent_color: Optional[str] = None
 
 class ProxyCheckRequest(BaseModel):
     proxies: str
@@ -272,6 +273,8 @@ async def update_me(req: UserUpdate, user: dict = Depends(get_current_user)):
         update_data["stripe_sk"] = req.stripe_sk
     if req.global_proxies is not None:
         update_data["global_proxies"] = req.global_proxies
+    if req.accent_color is not None:
+        update_data["accent_color"] = req.accent_color
         
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
@@ -725,3 +728,12 @@ async def get_saved_ccs(user: dict = Depends(get_current_user)):
     for d in docs:
         d["_id"] = str(d["_id"])
     return docs
+@app.delete("/api/checker/saved/all")
+async def delete_all_saved_ccs(user: dict = Depends(get_current_user)):
+    await db.saved_ccs.delete_many({"user_id": str(user["_id"])})
+    return {"message": "All saved hits cleared"}
+
+@app.delete("/api/checker/saved/{hit_id}")
+async def delete_saved_cc(hit_id: str, user: dict = Depends(get_current_user)):
+    await db.saved_ccs.delete_one({"_id": ObjectId(hit_id), "user_id": str(user["_id"])})
+    return {"message": "Hit deleted"}
