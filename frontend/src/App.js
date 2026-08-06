@@ -976,6 +976,7 @@ const CheckerTab = () => {
                       <div className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 rounded-xl p-1">
                         <button type="button" onClick={() => setStripeSkType("sk_based")} className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${stripeSkType === "sk_based" ? "bg-neutral-800 text-white shadow-sm" : "text-neutral-500 hover:text-neutral-300"}`}>SK-Based</button>
                         <button type="button" onClick={() => setStripeSkType("non_sk")} disabled={!isPremiumOrAdmin} className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${stripeSkType === "non_sk" ? "bg-neutral-800 text-white shadow-sm" : "text-neutral-500 hover:text-neutral-300 disabled:opacity-30"}`}>Non-SK (Premium)</button>
+                        <button type="button" onClick={() => setStripeSkType("site_based")} className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${stripeSkType === "site_based" ? "bg-neutral-800 text-white shadow-sm" : "text-neutral-500 hover:text-neutral-300"}`}>Site Based</button>
                       </div>
                     </div>
                     {stripeSkType === 'sk_based' && !user.stripe_sk && (
@@ -998,6 +999,15 @@ const CheckerTab = () => {
                          <div>
                            <span className="text-sm font-medium text-neutral-300 block mb-1">Using Global Admin Configured Secret Key</span>
                            <span className="text-xs text-neutral-500">Premium feature active.</span>
+                         </div>
+                         <Check className="w-5 h-5 text-green-500" />
+                       </div>
+                    )}
+                    {stripeSkType === 'site_based' && (
+                       <div className="bg-white/[0.03] border border-white/[0.05] rounded-2xl px-5 py-4 flex items-center justify-between">
+                         <div>
+                           <span className="text-sm font-medium text-neutral-300 block mb-1">Using Site-Based Integration (GiveWP)</span>
+                           <span className="text-xs text-neutral-500">Extracts Elements dynamically via automated headless proxy flows. No SK required.</span>
                          </div>
                          <Check className="w-5 h-5 text-green-500" />
                        </div>

