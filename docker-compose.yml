@@ -1,0 +1,39 @@
+version: "3.8"
+
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: velux-mongodb
+    restart: always
+    volumes:
+      - mongo_data:/data/db
+    ports:
+      - "27017:27017"
+
+  backend:
+    build: ./backend
+    container_name: velux-backend
+    restart: always
+    depends_on:
+      - mongodb
+    environment:
+      - MONGO_URL=mongodb://mongodb:27017
+      - DB_NAME=velux
+      - JWT_SECRET=ChangeThisToASuperSecretRandomKey123!
+      - ADMIN_USERNAME=SHORIEN
+      - ADMIN_PASSWORD=YourSecurePassword!
+      - FRONTEND_URL=http://localhost
+    ports:
+      - "8001:8001"
+
+  frontend:
+    build: ./frontend
+    container_name: velux-frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+
+volumes:
+  mongo_data:
