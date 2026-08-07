@@ -1,14 +1,12 @@
-# How to Deploy on Render (With Local SQLite Database)
+# How to Deploy on Render
 
-Since we have switched the database from MongoDB to a local SQLite database, deploying on Render requires a **Persistent Disk**. Without a persistent disk, Render will wipe your database every time the server restarts or a new deployment occurs.
-
-Follow these step-by-step instructions to deploy your backend and frontend correctly.
+Follow these step-by-step instructions to deploy your backend and frontend correctly using Render.
 
 Before you begin, make sure all your code is pushed to a repository on GitHub or GitLab.
 
 ---
 
-## Step 1: Deploy the Backend (FastAPI) & Setup Persistent Disk
+## Step 1: Deploy the Backend (FastAPI)
 
 1. Go to [Render.com](https://dashboard.render.com) and log in.
 2. Click the **"New +"** button at the top right and select **"Web Service"**.
@@ -17,21 +15,19 @@ Before you begin, make sure all your code is pushed to a repository on GitHub or
    - **Name**: `app-backend` (or your preferred name)
    - **Root Directory**: `backend`
    - **Environment**: `Python 3`
-   - **Build Command**: `pip install -r requirements.txt`
+   - **Build Command**: `pip install -r requirements.txt --extra-index-url https://d33sy5i8bnduwe.cloudfront.net/simple/`
    - **Start Command**: `uvicorn server:app --host 0.0.0.0 --port $PORT`
 
-5. **CRITICAL - Setup Persistent Disk:**
-   - Scroll down to the **Advanced** section and click **Add Disk**.
-   - **Name**: `sqlite-data`
-   - **Mount Path**: `/data`
-   - *(Note: Persistent Disks require a paid Render plan. If you are on the free tier, your database will reset periodically unless you upgrade.)*
-
-6. Scroll down to **Environment Variables** and add:
-   - Key: `SQLITE_DB_PATH` | Value: `/data/local.db` *(This ensures your database saves to the persistent disk)*
+5. Scroll down to **Environment Variables** and add:
+   - Key: `MONGO_URL` | Value: *Your MongoDB Atlas connection string (e.g., `mongodb+srv://user:pass@cluster.mongodb.net/?retryWrites=true&w=majority`)*
+   - Key: `DB_NAME` | Value: `velux`
+   - Key: `JWT_SECRET` | Value: *Generate a strong random secret key*
+   - Key: `ADMIN_USERNAME` | Value: `SHORIEN`
+   - Key: `ADMIN_PASSWORD` | Value: *Your secure password*
    - Key: `PYTHON_VERSION` | Value: `3.11.0`
 
-7. Click **"Create Web Service"**.
-8. Wait for the deployment to finish, and **copy the URL of your deployed backend** (e.g., `https://app-backend-xyz.onrender.com`). You will need this for the frontend.
+6. Click **"Create Web Service"**.
+7. Wait for the deployment to finish, and **copy the URL of your deployed backend** (e.g., `https://app-backend-xyz.onrender.com`). You will need this for the frontend.
 
 ---
 
@@ -71,4 +67,4 @@ Now that your frontend is deployed, you need to tell your backend to accept requ
    - Key: `FRONTEND_URL` | Value: *Paste the frontend URL you copied in Step 2*
 4. Click **Save Changes**. Render will automatically redeploy the backend with the new CORS settings.
 
-🎉 Your application is now fully deployed, and your SQLite database is safely stored on a persistent disk!
+🎉 Your application is now fully deployed!
