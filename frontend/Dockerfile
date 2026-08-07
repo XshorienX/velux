@@ -3,7 +3,7 @@ FROM node:20.18-alpine as builder
 WORKDIR /app
 
 # Copy package files
-COPY package.json yarn.lock .npmrc ./
+COPY package.json .npmrc ./
 
 # Install dependencies securely bypassing peer conflicts
 RUN npm install --legacy-peer-deps
