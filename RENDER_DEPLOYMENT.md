@@ -1,18 +1,16 @@
-# How to Deploy VeLuX on Render (MongoDB Edition)
+# How to Deploy VeLuX on Render (Local MongoDB Edition)
 
-This guide will walk you through deploying your **VeLuX System** on [Render.com](https://render.com) utilizing a MongoDB database.
+This guide will walk you through deploying your **VeLuX System** on [Render.com](https://render.com) using a **Local MongoDB Instance** running directly inside your Backend server. This saves you from needing to use MongoDB Atlas!
 
-We have included a `render.yaml` Blueprint file to make deployment as easy as clicking a few buttons.
+We have included a `render.yaml` Blueprint file to automate this complex setup.
 
 ---
 
-## Step 0: Prepare Your Database
-Before deploying to Render, you need a MongoDB database hosted in the cloud.
-1. Go to [MongoDB Atlas](https://www.mongodb.com/cloud/atlas/register) and create a free account.
-2. Create a free **M0 Cluster**.
-3. Create a Database User and save the **password**.
-4. In Network Access, allow access from anywhere (`0.0.0.0/0`).
-5. Click "Connect" -> "Connect your application" and copy the **Connection String** (it starts with `mongodb+srv://...`).
+## Important Note on Pricing
+Because we are running a local MongoDB database inside the Render container, Render requires a **Persistent Disk** to store the database files so they don't get deleted when the server restarts. 
+- Persistent Disks **cannot** be attached to Free Tier instances.
+- You must use at least the **Starter Plan ($7/month)** on the backend to attach the disk. 
+- (If you want to stay 100% free on Render, you MUST use an external Database like MongoDB Atlas).
 
 ---
 
@@ -26,13 +24,18 @@ Make sure all your latest code (including the `render.yaml` file) is pushed to y
 1. Go to [Render.com](https://dashboard.render.com) and log in.
 2. Click the **"New +"** button at the top right and select **"Blueprint"**.
 3. Connect your GitHub/GitLab account and select your repository.
-4. Render will read the `render.yaml` file and prompt you for the required environment variables:
-   - **`MONGO_URL`**: Paste your MongoDB Atlas connection string here (replace `<password>` with your actual DB password).
+4. Render will read the `render.yaml` file. The `render.yaml` is configured to:
+   - Automatically download and install MongoDB binaries during deployment.
+   - Boot up MongoDB locally in the background on port 27017.
+   - Point the FastAPI app to `mongodb://127.0.0.1:27017`.
+   - Mount a 1GB Persistent Disk to `/data/db` to save the data permanently.
+
+5. Fill out the missing environment variables when prompted:
    - **`JWT_SECRET`**: Enter a strong, random password or key to secure user sessions.
    - **`ADMIN_PASSWORD`**: Enter the password you want to use for the `SHORIEN` admin account.
-   - **`REACT_APP_BACKEND_URL`**: (Leave this blank for now, or enter a dummy URL like `https://temp.com`).
-   - **`FRONTEND_URL`**: (Leave this blank for now, or enter a dummy URL like `https://temp.com`).
-5. Click **"Apply"**.
+   - **`REACT_APP_BACKEND_URL`**: (Leave this blank for now).
+   - **`FRONTEND_URL`**: (Leave this blank for now).
+6. Click **"Apply"**.
 
 Render will now begin building both the `velux-backend` and `velux-frontend` Web Services. Wait for both builds to finish.
 
@@ -40,7 +43,7 @@ Render will now begin building both the `velux-backend` and `velux-frontend` Web
 
 ## Step 3: Connect Frontend and Backend
 
-Once the services are deployed, they need to know each other's URLs to communicate properly.
+Once the services are deployed, they need to know each other's URLs to communicate properly (CORS).
 
 1. **Find your URLs**:
    - Go to your Render Dashboard.
@@ -59,4 +62,4 @@ Once the services are deployed, they need to know each other's URLs to communica
    - Find `FRONTEND_URL` and paste the **Frontend URL** you just copied.
    - Click **Save Changes** (Render will automatically redeploy the backend).
 
-🎉 **Your VeLuX System is now fully deployed on Render with MongoDB!** You can access it by visiting your Frontend URL.
+🎉 **Your VeLuX System is now fully deployed on Render with an internal Local MongoDB!** You can access it by visiting your Frontend URL.
