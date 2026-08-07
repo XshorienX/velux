@@ -412,8 +412,8 @@ async def get_bin_info(bin_code: str, user: dict = Depends(get_current_user)):
 def test_proxy_sync(raw_proxy: str, proxy_url: str) -> bool:
     proxies = {"http": proxy_url, "https": proxy_url}
     try:
-        res_stripe = requests.get("https://api.stripe.com/healthcheck", proxies=proxies, timeout=15.0, verify=False)
-        res_shopify = requests.get("https://shopify.com", proxies=proxies, timeout=15.0, verify=False)
+        res_stripe = requests.get("https://api.stripe.com/healthcheck", proxies=proxies, timeout=30.0, verify=False)
+        res_shopify = requests.get("https://shopify.com", proxies=proxies, timeout=30.0, verify=False)
         if res_stripe.status_code and res_shopify.status_code:
             return True
     except Exception as e:
