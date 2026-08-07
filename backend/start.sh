@@ -5,11 +5,11 @@ if [ ! -f $HOME/mongodb_bin/mongod ]; then
     echo "Downloading and installing MongoDB locally..."
     mkdir -p /tmp/mongodb
     cd /tmp/mongodb
-    curl -O https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-debian11-7.0.5.tgz
-    tar -zxvf mongodb-linux-x86_64-debian11-7.0.5.tgz
+    curl -O https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-ubuntu2204-7.0.5.tgz
+    tar -zxvf mongodb-linux-x86_64-ubuntu2204-7.0.5.tgz
     mkdir -p $HOME/mongodb_bin
-    cp mongodb-linux-x86_64-debian11-7.0.5/bin/mongod $HOME/mongodb_bin/
-    cd $HOME/src
+    cp mongodb-linux-x86_64-ubuntu2204-7.0.5/bin/mongod $HOME/mongodb_bin/
+    cd $HOME/project/src/backend
 fi
 
 # Ensure data directory exists on the persistent disk
@@ -21,6 +21,6 @@ $HOME/mongodb_bin/mongod --fork --logpath /data/db/mongodb.log --dbpath /data/db
 
 # Start the FastAPI server
 echo "Starting Uvicorn Server..."
-cd $HOME/src
-export PYTHONPATH=$HOME/src
+cd $HOME/project/src/backend
+export PYTHONPATH=$HOME/project/src/backend
 uvicorn server:app --host 0.0.0.0 --port $PORT
