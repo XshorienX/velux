@@ -131,7 +131,7 @@ const Login = () => {
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="min-h-screen flex items-center justify-center p-4 relative bg-black">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="min-h-screen flex items-center justify-center p-4 relative bg-black" style={{ '--accent': '#ffffff' }}>
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-white/[0.015] rounded-full blur-[100px] pointer-events-none"></div>
       
       <div className="w-full max-w-[400px] bg-[#0A0A0A] border border-neutral-800/80 rounded-[2rem] p-8 shadow-2xl relative z-10">

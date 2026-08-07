@@ -90,7 +90,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
 
 def create_access_token(user_id: str, username: str) -> str:
-    payload = {"sub": user_id, "username": username, "exp": datetime.now(timezone.utc) + timedelta(minutes=15), "type": "access"}
+    payload = {"sub": user_id, "username": username, "exp": datetime.now(timezone.utc) + timedelta(days=7), "type": "access"}
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 def create_refresh_token(user_id: str) -> str:
@@ -206,7 +206,7 @@ async def login(req: LoginRequest, request: Request, response: Response):
     access_token = create_access_token(str(user["_id"]), user["username"])
     refresh_token = create_refresh_token(str(user["_id"]))
     
-    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=900, path="/")
+    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=604800, path="/")
     response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=True, samesite="none", max_age=604800, path="/")
     
     # Process daily reset during login as well for immediate updated return
@@ -252,7 +252,7 @@ async def refresh_token(request: Request, response: Response):
             raise HTTPException(status_code=401, detail="Invalid user")
         
         access_token = create_access_token(str(user["_id"]), user["username"])
-        response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=900, path="/")
+        response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=604800, path="/")
         return {"message": "Token refreshed"}
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
