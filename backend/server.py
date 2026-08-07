@@ -695,7 +695,12 @@ def check_givewp_stripe(card_details: str, proxy: str = ""):
             code = err.get("decline_code") or err.get("code", "declined")
             return {"result": {"status": "DECLINED", "message": code}}
         elif res_data.get("status") in ["succeeded", "requires_action"]:
-            return {"result": {"status": "APPROVED", "message": "Charged / Approved £5"}}
+            charge_id = ""
+            if "charges" in res_data and "data" in res_data["charges"] and len(res_data["charges"]["data"]) > 0:
+                charge_id = res_data["charges"]["data"][0].get("id", "")
+            if not charge_id:
+                charge_id = res_data.get("id", "")
+            return {"result": {"status": "APPROVED", "message": f"Charged / Approved £5 (ID: {charge_id})" if charge_id else "Charged / Approved £5"}}
         else:
             return {"result": {"status": "DECLINED", "message": res_data.get("status", "Unknown")}}
     except Exception as e:
