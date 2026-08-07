@@ -1,12 +1,12 @@
 # CloudPanel VPS Deployment Guide
 
-This guide will walk you through deploying your **VeLuX System** across two separate VPS instances using **CloudPanel**. We will use one VPS for the **Backend (Python FastAPI + SQLite)** and the other for the **Frontend (React)**.
+This guide will walk you through deploying your **VeLuX System** across two separate VPS instances using **CloudPanel**. We will use one VPS for the **Backend (Python FastAPI + MongoDB)** and the other for the **Frontend (React)**.
 
 ---
 
 ## VPS 1: Backend Deployment (Python API & Database)
 
-Since your backend uses a local SQLite database (`local.db`), it is extremely easy to deploy on CloudPanel. 
+Since your backend uses MongoDB, you can easily connect it to a hosted cluster (like MongoDB Atlas) or install MongoDB locally on your VPS if preferred.
 
 ### Step 1: Create a Python App in CloudPanel
 1. Log in to your CloudPanel dashboard on **VPS 1**.
@@ -33,7 +33,8 @@ Since your backend uses a local SQLite database (`local.db`), it is extremely ea
 1. Create a `.env` file in the root of your backend directory (`/htdocs/api.yourdomain.com/.env`).
 2. Add the following variables:
    ```env
-   SQLITE_DB_PATH=local.db
+   MONGO_URL=mongodb+srv://<your-db-user>:<your-db-pass>@cluster.mongodb.net/?retryWrites=true&w=majority
+   DB_NAME=velux
    FRONTEND_URL=https://checker.yourdomain.com
    JWT_SECRET=generate-a-strong-random-secret-key-here
    ADMIN_USERNAME=SHORIEN
