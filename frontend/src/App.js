@@ -976,7 +976,7 @@ const CheckerTab = () => {
                       <div className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 rounded-xl p-1">
                         <button type="button" onClick={() => setStripeSkType("sk_based")} className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${stripeSkType === "sk_based" ? "bg-neutral-800 text-white shadow-sm" : "text-neutral-500 hover:text-neutral-300"}`}>SK-Based</button>
                         <button type="button" onClick={() => setStripeSkType("non_sk")} disabled={!isPremiumOrAdmin} className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${stripeSkType === "non_sk" ? "bg-neutral-800 text-white shadow-sm" : "text-neutral-500 hover:text-neutral-300 disabled:opacity-30"}`}>Non-SK (Premium)</button>
-                        <button type="button" onClick={() => setStripeSkType("site_based")} className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${stripeSkType === "site_based" ? "bg-neutral-800 text-white shadow-sm" : "text-neutral-500 hover:text-neutral-300"}`}>Site Based</button>
+                        <button type="button" onClick={() => setStripeSkType("site_based")} disabled={!isPremiumOrAdmin} className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${stripeSkType === "site_based" ? "bg-neutral-800 text-white shadow-sm" : "text-neutral-500 hover:text-neutral-300 disabled:opacity-30"}`}>Site Based (Premium)</button>
                       </div>
                     </div>
                     {stripeSkType === 'sk_based' && !user.stripe_sk && (

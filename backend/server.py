@@ -729,6 +729,8 @@ async def run_checker(req: CheckerRequest, user: dict = Depends(get_current_user
     is_premium_or_admin = user.get("plan") == "premium" or user.get("role") == "admin"
     if req.gateway == "stripe" and req.sk_type == "non_sk" and not is_premium_or_admin:
          return {"status": False, "message": "Non-SK based checks are a Premium feature."}
+    if req.gateway == "stripe" and req.sk_type == "site_based" and not is_premium_or_admin:
+         return {"status": False, "message": "Site-Based checks are a Premium feature."}
     if req.gateway == "shopify" and req.site_type == "inbuilt" and not is_premium_or_admin:
          return {"status": False, "message": "Inbuilt Site checks are a Premium feature."}
         
