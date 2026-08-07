@@ -5,11 +5,13 @@ load_dotenv()
 
 from fastapi import FastAPI, Request, Response, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
+from db_wrapper import AsyncMongoSQLite
 import bcrypt
 import jwt
 from datetime import datetime, timezone, timedelta
-from bson import ObjectId
+# Dummy ObjectId for compatibility
+def ObjectId(val):
+    return str(val)
 from pydantic import BaseModel
 from typing import List, Optional
 import requests
@@ -43,9 +45,10 @@ db = None
 
 @app.on_event("startup")
 async def startup_db_client():
-    global client, db
-    client = AsyncIOMotorClient(MONGO_URL)
-    db = client[DB_NAME]
+    global db
+    db_path = os.environ.get("SQLITE_DB_PATH", "local.db")
+    db = AsyncMongoSQLite(db_path)
+    await db.connect()
     
     await db.users.create_index("username", unique=True)
     await db.login_attempts.create_index("identifier")
@@ -76,8 +79,8 @@ async def startup_db_client():
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
-    if client:
-        client.close()
+    if db:
+        await db.close()
 
 def hash_password(password: str) -> str:
     salt = bcrypt.gensalt()
